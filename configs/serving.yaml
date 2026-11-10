@@ -1,0 +1,9 @@
+# vLLM serving on GB10 — see docs/BRIEF_v1.2 Appendix B1
+model: "Qwen/Qwen3-30B-A3B-Instruct-2507-FP8"
+dtype: "auto"            # FP8 variant
+gpu_memory_utilization: 0.85
+max_model_len: 32768
+enable_prefix_caching: true
+enable_chunked_prefill: true
+# multi-LoRA enabled at serve time via --enable-lora
+# DO NOT set CUTE_DSL_ARCH=sm_121a (hangs on GB10)
