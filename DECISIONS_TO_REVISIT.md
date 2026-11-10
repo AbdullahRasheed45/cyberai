@@ -15,21 +15,21 @@ This file tracks choices made because of a **current constraint** that will chan
 - **Why now:** We rent a cloud GB10 hourly (~$0.80/hr), so paying for the GPU to type boilerplate wastes money.
 - **Trigger:** Physical DGX Spark owned (no hourly cost).
 - **Action on trigger:** Collapse the split back to the brief's natural Stage-0 (pre-work) / Stage-1 (foundation) structure from `SONNET_COMPLETE_BUILD_PLAN.md`. The GPU/non-GPU ordering no longer needs to drive the stage boundaries.
-- **Issue:** #<!-- fill when created: gh issue create --label revisit-on-dgx -->
+- **Issue:** #3
 
 ### R-002 — Ephemeral-instance workarounds (model re-download, persist-to-git)
 - **Decision (for now):** Model download is scripted for repeated re-download; all state is pushed to git because the instance is disposable; sessions are structured as tear-down-friendly.
 - **Why now:** The rented cloud instance is ephemeral — anything not in git / re-downloadable is lost on teardown.
 - **Trigger:** Physical DGX Spark owned (persistent local storage, up to 4TB NVMe).
 - **Action on trigger:** Keep the model locally on the Spark's NVMe (no repeated re-download); simplify session structure (no teardown urgency); still keep code in git, but drop the ephemeral-session ceremony.
-- **Issue:** #
+- **Issue:** #4
 
 ### R-003 — Container tags pinned from community/cloud images
 - **Decision (for now):** vLLM SM121 and Unsloth NGC container tags are pinned from whatever works on the rented instance.
 - **Why now:** We validate on a rented GB10 whose base image/driver may differ from the Founders/retail DGX OS we'll own.
 - **Trigger:** Physical DGX Spark owned (its own DGX OS image + driver).
 - **Action on trigger:** Re-verify the container tags against the owned unit's DGX OS/driver; re-pin if they differ; re-run the Stage-1 blocker confirmations on the owned hardware.
-- **Issue:** #
+- **Issue:** #5
 
 ---
 
@@ -40,7 +40,7 @@ This file tracks choices made because of a **current constraint** that will chan
 - **Why now:** Turning a £5k bet into a ~$20 test. Buy only on evidence.
 - **Trigger:** Stage 0+1 DoD met on the cloud instance (blockers confirmed, baseline numbers captured, `stage1_baseline.md` committed).
 - **Action on trigger:** Review `stage1_baseline.md`; if the numbers and confirmations are acceptable, proceed to order the DGX Spark. If not, decide: optimise further, change model strategy, or reconsider hardware — BEFORE spending.
-- **Issue:** #
+- **Issue:** #2
 
 ---
 
@@ -51,7 +51,7 @@ This file tracks choices made because of a **current constraint** that will chan
 - **Why now:** We must commit the threshold BEFORE measuring to avoid motivated reasoning (brief §7.8).
 - **Trigger:** Stage 1.5 measurement runs; or a ~100-trajectory pilot SFT result exists.
 - **Action on trigger:** Apply the two-way revision rule (lower the bar only if a ~100-pilot beats baseline; park Loop B if a full round fails twice). **Do not silently edit the pre-registered numbers** — revise only per the rule, and log the revision here.
-- **Issue:** #
+- **Issue:** #6
 
 ---
 
