@@ -21,6 +21,21 @@
 ## Measurements (if applicable)
 <!-- Paste real numbers for serving/training/throughput changes. No hardcoded assumptions. -->
 
+## Hardware evidence
+<!-- Distinguish what actually produced any claim in this PR. Delete rows that don't apply. -->
+- [ ] Local (Windows dev machine) — no GPU/hardware claim
+- [ ] Mocked / fake ports — no real backend touched
+- [ ] CI (GitHub Actions runner) — foundation checks only, no GPU
+- [ ] Actual GB10 hardware (cloud rental or owned) — attach the command + raw output
+- [ ] Actual lab laptop hardware — attach the command + raw output
+- [ ] N/A — this PR touches no serving/training/lab claims
+
+## Outstanding risks / blockers
+<!-- What is NOT yet proven by this PR (e.g. "needs re-confirmation on real GB10";
+     "schema only, no live service behind it yet"). An empty box here is a claim
+     that nothing is outstanding — don't leave it blank by default. -->
+-
+
 ## Decisions to revisit
 <!-- If this PR made any constraint-driven "for now" choice, list the DECISIONS_TO_REVISIT.md entry + issue number. -->
 - [ ] No temporary decisions made in this PR, OR logged: #
