@@ -6,6 +6,11 @@ from datetime import UTC, datetime
 import structlog
 
 from libs.common.config import ConfigError, load_yaml_config
+from libs.common.gb10_serving import (
+    ServeCommand,
+    UnverifiedLoraCombinationError,
+    render_serve_command,
+)
 
 # Six logging groups as explicit categories (brief §13)
 LOG_GROUPS = ("training", "routing", "eval", "data_lineage", "verifier_health", "config_env")
@@ -30,4 +35,7 @@ __all__ = [
     "now",
     "load_yaml_config",
     "ConfigError",
+    "render_serve_command",
+    "ServeCommand",
+    "UnverifiedLoraCombinationError",
 ]

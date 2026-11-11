@@ -1,0 +1,1 @@
+nvcr.io/nvidia/vllm:26.10-py3@sha256:ecd885a6fa671552021eb2bef16773110ebfa4eb5e24e4a2831bf0f4808ddfea

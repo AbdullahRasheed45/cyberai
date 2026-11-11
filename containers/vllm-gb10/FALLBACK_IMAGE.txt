@@ -1,0 +1,6 @@
+# Used only if IMAGE.txt's official NGC image fails preflight with the
+# sm_121 CUTLASS gap (see PROVENANCE.md). The digest below is what
+# `eugr/spark-vllm:latest` resolved to on 2026-11-11 — this is a FLOATING
+# tag with no numbered release found; re-resolve before trusting it again:
+#   docker manifest inspect --verbose eugr/spark-vllm:latest
+eugr/spark-vllm:latest@sha256:5e59cb7efe08a99b023925a185c971c5a31868d8261b755c33d9911c3b9389aa

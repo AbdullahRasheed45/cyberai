@@ -22,22 +22,61 @@ class ServingConfig(BaseModel):
     debugged (brief §4.2). Multi-LoRA personas are listed in `lora_adapters`
     and must each be a generation that has passed the promotion gate before
     being added here — this file is not where untested adapters get tried.
+
+    GB10/sm_121 is not an officially merged vLLM target as of 2026-11-11
+    (upstream PR vllm-project/vllm#31740 was closed, unmerged — see
+    `containers/vllm-gb10/PROVENANCE.md`). `attention_backend` and
+    `require_lora_fp8_verified` exist specifically to make that uncertainty
+    an explicit, checked setting rather than a silent assumption.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     model: str
+    # The exact HF commit this config was validated against (CLAUDE.md
+    # directive #6 extends to model identity: no floating "latest" in a
+    # serving config). Re-pin deliberately, never drop to None.
+    model_revision: str
     served_model_name: str = "qwen3"
     dense_fallback_model: str
+    dense_fallback_revision: str
     dtype: str = "auto"
     gpu_memory_utilization: float = Field(gt=0, le=1)
     max_model_len: int = Field(gt=0)
     enable_prefix_caching: bool = True
     enable_chunked_prefill: bool = True
+
+    # --- network exposure: bind to a trusted interface, never a blind 0.0.0.0 ---
+    host: str = "127.0.0.1"
+    port: int = Field(gt=0, le=65535, default=8000)
+
+    # --- concurrency / memory knobs (brief §5.2: batching vs long-context
+    # spend the same KV budget; tune on measured hardware, don't trust a
+    # default) ---
+    max_num_seqs: int = Field(gt=0, default=4)
+    kv_cache_dtype: str = "auto"  # vLLM: auto | fp8 | fp8_e5m2 | fp8_e4m3
+
+    # --- GB10/sm_121: upstream CUTLASS scaled_mm has no sm_121 kernel
+    # (vllm-project/vllm#31740); known-working fallback is the Triton
+    # attention backend (set via the VLLM_ATTENTION_BACKEND env var — no
+    # confirmed stable `--attention-backend` CLI flag as of this writing).
+    # Re-verify against `vllm serve --help` on the actual installed image
+    # before trusting this; see scripts/gb10/preflight.sh.
+    attention_backend: str = "TRITON_ATTN"
+
     enable_lora: bool = True
     # Adapter ids already certified by the promotion gate (model_registry);
     # empty until a generation exists. Never list an unpromoted adapter here.
     lora_adapters: list[str] = Field(default_factory=list)
+    # Multi-LoRA on a quantized MoE model (our FP8 primary) is NOT verified:
+    # vLLM issue #29424 ("MoE LoRA for quantized models") was closed as "not
+    # planned", and a real LoRA-on-quantized-MoE attempt (AWQ, same code
+    # path family as FP8) produced garbage output. Serving scripts must
+    # refuse --enable-lora against the FP8 primary model unless this is
+    # explicitly set true after a real, hardware-verified correctness check
+    # — see containers/vllm-gb10/PROVENANCE.md. The dense bf16 fallback has
+    # no such restriction; ordinary multi-LoRA is well-supported there.
+    require_lora_fp8_verified: bool = False
 
 
 class TrainingConfig(BaseModel):
