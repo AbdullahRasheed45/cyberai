@@ -10,6 +10,7 @@ dependencies = [
   "psycopg[binary]>=3.1",
   "mlflow>=2.14",
   "pytest>=8.0",
+  "regex>=2024.0",
 ]
 
 [tool.pytest.ini_options]
@@ -17,7 +18,7 @@ testpaths = ["tests"]
 filterwarnings = ["error"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["libs"]
+packages = ["libs", "rental", "detection_verifier"]
 
 [build-system]
 requires = ["hatchling"]

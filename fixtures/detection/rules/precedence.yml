@@ -1,0 +1,11 @@
+title: Precedence check
+logsource:
+  category: process_creation
+detection:
+  a:
+    Image|endswith: '\powershell.exe'
+  b:
+    CommandLine|contains: 'NEVER_MATCHES_b'
+  c:
+    CommandLine|contains: 'NEVER_MATCHES_c'
+  condition: a or b and c

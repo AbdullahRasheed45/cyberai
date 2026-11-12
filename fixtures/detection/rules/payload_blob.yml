@@ -1,0 +1,8 @@
+title: Encoded PowerShell (keys on a specific long payload blob)
+logsource:
+  category: process_creation
+detection:
+  selection:
+    Image|endswith: '\powershell.exe'
+    CommandLine|contains: 'QwBhAG4AYQByAHkAUABhAHkAbABvAGEAZAA='
+  condition: selection

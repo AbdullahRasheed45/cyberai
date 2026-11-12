@@ -1,0 +1,9 @@
+title: Encoded PowerShell (good)
+logsource:
+  category: process_creation
+detection:
+  selection_img:
+    Image|endswith: ['\powershell.exe', '\pwsh.exe']
+  selection_enc:
+    CommandLine|re: '(?i)(?:^|\s)-(?:e|en|enc|enco|encod|encode|encoded|encodedcommand)\s+["'']?[A-Za-z0-9+/=]{16,}'
+  condition: selection_img and selection_enc

@@ -1,0 +1,4 @@
+{"Method": "GET", "UriPath": "/item", "QueryString": "id=3') OR ('1'='1", "UserAgent": "Mozilla/5.0", "SourceIp": "10.0.6.1", "Host": "shop.example", "Body": ""}
+{"Method": "GET", "UriPath": "/admin", "QueryString": "q=x'; DROP TABLE users--", "UserAgent": "Mozilla/5.0", "SourceIp": "10.0.6.2", "Host": "shop.example", "Body": ""}
+{"Method": "POST", "UriPath": "/report", "QueryString": "", "Body": "f=1' UNION ALL SELECT @@version--", "UserAgent": "curl/8.0", "SourceIp": "10.0.6.3", "Host": "shop.example"}
+{"Method": "GET", "UriPath": "/p", "QueryString": "n=1 OR 1=1", "UserAgent": "Mozilla/5.0", "SourceIp": "10.0.6.4", "Host": "shop.example", "Body": ""}

@@ -1,0 +1,9 @@
+title: Incidental-only hidden behind an unused behavioural selection
+logsource:
+  category: process_creation
+detection:
+  sel_user:
+    User: 'CORP\mallory'
+  sel_unused_behavioural:
+    Image|endswith: '\powershell.exe'
+  condition: sel_user

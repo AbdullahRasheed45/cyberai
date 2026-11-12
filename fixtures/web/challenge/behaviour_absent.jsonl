@@ -1,0 +1,4 @@
+{"Method": "GET", "UriPath": "/item", "QueryString": "id=99", "UserAgent": "Mozilla/5.0", "SourceIp": "10.0.7.1", "Host": "shop.example", "Body": ""}
+{"Method": "GET", "UriPath": "/wiki", "QueryString": "t=the all select committee report", "UserAgent": "Mozilla/5.0", "SourceIp": "10.0.7.2", "Host": "shop.example", "Body": ""}
+{"Method": "POST", "UriPath": "/report", "QueryString": "", "Body": "f=version 1 or version 2 is fine", "UserAgent": "Mozilla/5.0", "SourceIp": "10.0.7.3", "Host": "shop.example"}
+{"Method": "GET", "UriPath": "/admin", "QueryString": "view=users", "UserAgent": "Mozilla/5.0", "SourceIp": "10.0.7.4", "Host": "shop.example", "Body": ""}

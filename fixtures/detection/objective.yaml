@@ -1,0 +1,31 @@
+# Bounded detection objective — Round-7 (defect #9 label separation)
+id: T1059.001-encoded-powershell-longpayload
+title: Encoded-command PowerShell invocation with base64 payload length >= 16
+technique: T1059.001
+# RESTRICTED SCOPE, named consistently: the TARGET BEHAVIOUR is invocation of
+# powershell/pwsh with an encoded-command flag carrying a base64 payload of
+# length >= 16. This is a behaviour detector; maliciousness is a SEPARATE task.
+objective_type: behaviour_detector
+restricted_scope: "payload length >= 16 characters"
+label_space:                      # four distinct labels (defect #9)
+  behaviour_present: "encoded invocation, payload len >= 16 (malicious OR benign — intent is downstream)"
+  behaviour_absent:  "no such invocation (normal PS, -Encoding, -ExecutionPolicy, bare -enc, non-PS)"
+  out_of_scope:      "encoded invocation with payload len < 16 — NOT a negative; excluded from coverage/FP"
+  maliciousness:     "independently established elsewhere; this objective does not label it"
+supported_flag_forms: [-e, -en, -enc, -enco, -encod, -encode, -encoded, -encodedcommand]
+telemetry_contract:
+  category: process_creation
+  required_fields: [Image, CommandLine]        # absent/null -> record is UNEVALUABLE (rejected)
+  behavioral: [Image, OriginalFileName, CommandLine, ParentImage, TargetFilename]
+  incidental: [User, ComputerName, SourceIp, UtcTime, LogonId, ProcessGuid, Hashes]
+thresholds: {cmin: 0.80, fpmax: 0.0}            # provisional reversible defaults
+fixture_status: public_regression_fixtures      # NOT a restricted acceptance set
+scoring: >
+  coverage = fraction of behaviour_present matched; fp_burden = fraction of
+  behaviour_absent matched. out_of_scope events are evaluated and REPORTED
+  (out_of_scope_fires) but never counted as TP or FP. Report counts with rates.
+ground_truth_provenance: >
+  Hand-authored labelled fixtures with the expected properties above; SMOKE/
+  REGRESSION only, not evidence of general detection quality. A string match is
+  not confirmation a command executed. Live Atomic Red Team ingestion is deferred
+  and must verify prerequisites, execution, captured telemetry and controls.

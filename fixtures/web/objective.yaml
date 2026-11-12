@@ -1,0 +1,52 @@
+id: web-sqli-detection
+title: SQL injection attempt in web request (query string or body)
+domain: web
+objective_type: behaviour_detector
+restricted_scope: SQLi tokens in QueryString or Body (not UserAgent/Referer/headers)
+label_space:
+  behaviour_present: request whose QueryString or Body contains an SQLi attempt (malicious
+    OR a pentest)
+  behaviour_absent: benign request, including look-alikes (the words union/select/drop/or/apostrophe
+    used legitimately)
+  out_of_scope: SQLi-looking content ONLY in a field outside scope (e.g. UserAgent)
+    — not a negative
+telemetry_contract:
+  category: web_request
+  required_fields:
+  - Method
+  - UriPath
+  - QueryString
+  - Body
+  behavioral:
+  - Method
+  - UriPath
+  - QueryString
+  - Body
+  - UserAgent
+  - Referer
+  incidental:
+  - SourceIp
+  - Host
+  - Status
+  - RequestId
+  - UtcTime
+  captured_empty_allowed:
+  - QueryString
+  - Body
+thresholds:
+  cmin: 0.8
+  fpmax: 0.0
+splits:
+  design: Public hand-authored train/dev/challenge regression fixtures. Families recur
+    across splits; no generator-disjoint or restricted-acceptance claim.
+  train: ''' OR ''1''=''1 ; '' OR 1=1-- ; UNION SELECT ... FROM users'
+  dev: admin'-- ; ' OR 'a'='a ; 1' UNION SELECT NULL--
+  challenge: ''') OR (''1''=''1 ; ; DROP TABLE users-- ; '' UNION ALL SELECT @@version--
+    ; 1 OR 1=1'
+fixture_status: public_regression_fixtures
+ground_truth_provenance: 'Hand-authored labelled web requests using canonical, decades-old
+  SQLi tokens as DEFENSIVE detection data (as in any WAF/IDS test corpus). SMOKE/REGRESSION
+  scale, not proof of general detection quality. Live capture/replay against DVWA/Juice
+  Shop is the next step and must label from the app''s own attack ground truth.
+
+  '

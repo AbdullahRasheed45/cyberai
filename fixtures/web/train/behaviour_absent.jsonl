@@ -1,0 +1,5 @@
+{"Method": "GET", "UriPath": "/products", "QueryString": "id=42", "UserAgent": "Mozilla/5.0", "SourceIp": "10.0.1.1", "Host": "shop.example", "Body": ""}
+{"Method": "GET", "UriPath": "/search", "QueryString": "q=union of concerned scientists", "UserAgent": "Mozilla/5.0", "SourceIp": "10.0.1.2", "Host": "shop.example", "Body": ""}
+{"Method": "GET", "UriPath": "/plans", "QueryString": "tier=select-your-plan", "UserAgent": "Mozilla/5.0", "SourceIp": "10.0.1.3", "Host": "shop.example", "Body": ""}
+{"Method": "POST", "UriPath": "/comment", "QueryString": "", "Body": "text=I'd rather not drop off here", "UserAgent": "Mozilla/5.0", "SourceIp": "10.0.1.4", "Host": "shop.example"}
+{"Method": "GET", "UriPath": "/page", "QueryString": "n=2", "UserAgent": "Mozilla/5.0", "SourceIp": "10.0.1.5", "Host": "shop.example", "Body": ""}

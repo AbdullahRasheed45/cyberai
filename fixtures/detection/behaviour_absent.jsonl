@@ -1,0 +1,7 @@
+{"Image":"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe","CommandLine":"powershell.exe -ExecutionPolicy Bypass -File C:\\scripts\\backup.ps1","User":"CORP\\svc_backup","ParentImage":"C:\\Windows\\System32\\services.exe","ComputerName":"SRV02"}
+{"Image":"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe","CommandLine":"powershell -Encoding UTF8 -Command Get-Content C:\\logs\\app.log","User":"CORP\\alice","ParentImage":"C:\\Windows\\explorer.exe","ComputerName":"WS01"}
+{"Image":"C:\\Windows\\System32\\cmd.exe","CommandLine":"cmd /c dir C:\\Users","User":"CORP\\bob","ParentImage":"C:\\Windows\\explorer.exe","ComputerName":"WS14"}
+{"Image":"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe","CommandLine":"powershell Get-Process | Sort CPU","User":"CORP\\carol","ParentImage":"C:\\Windows\\explorer.exe","ComputerName":"HR07"}
+{"Image":"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe","CommandLine":"powershell.exe -enc","User":"CORP\\dave","ParentImage":"C:\\Windows\\explorer.exe","ComputerName":"WS03"}
+{"Image":"C:\\Program Files\\7-Zip\\7z.exe","CommandLine":"7z a out.zip VABoAGkAcwBJAHMATgBvAHQAUABvAHcAZQByAFMAaABlAGwAbAA=","User":"CORP\\erin","ParentImage":"C:\\Windows\\explorer.exe","ComputerName":"WS22"}
+{"Image":"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe","CommandLine":"powershell -ExecutionPolicy RemoteSigned -File deploy.ps1","User":"CORP\\ops","ParentImage":"C:\\Windows\\System32\\services.exe","ComputerName":"SRV05"}
