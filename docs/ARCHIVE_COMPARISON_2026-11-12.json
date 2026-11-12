@@ -1,0 +1,71 @@
+[
+  {
+    "archive_directory": "cyberai_round17_opus",
+    "files": 92,
+    "not_in_round18": [],
+    "changed_in_round18": [
+      "CONFIG_STATUS.md",
+      "DECISIONS_TO_REVISIT.md",
+      "artifacts/bundle_artifacts.tar.gz",
+      "artifacts/preflight.json",
+      "detection_verifier/checker.py",
+      "detection_verifier/sigma_subset.py",
+      "scripts/rental/FREEZE.yaml"
+    ]
+  },
+  {
+    "archive_directory": "cyberai_round17_reviewed_lineage_resolved",
+    "files": 95,
+    "not_in_round18": [],
+    "changed_in_round18": [
+      "DECISIONS_TO_REVISIT.md",
+      "artifacts/bundle_artifacts.tar.gz",
+      "detection_verifier/checker.py",
+      "detection_verifier/sigma_subset.py"
+    ]
+  },
+  {
+    "archive_directory": "cyberai_round17b_opus",
+    "files": 96,
+    "not_in_round18": [],
+    "changed_in_round18": [
+      "DECISIONS_TO_REVISIT.md",
+      "artifacts/bundle_artifacts.tar.gz",
+      "detection_verifier/checker.py",
+      "detection_verifier/sigma_subset.py"
+    ]
+  },
+  {
+    "archive_directory": "cyberai_round18_web_eval",
+    "files": 114,
+    "not_in_round18": [],
+    "changed_in_round18": []
+  },
+  {
+    "archive_directory": "cyberai_setup_resolved_round17",
+    "files": 90,
+    "not_in_round18": [],
+    "changed_in_round18": [
+      "CONFIG_STATUS.md",
+      "artifacts/bundle_artifacts.tar.gz",
+      "artifacts/preflight.json",
+      "detection_verifier/checker.py",
+      "detection_verifier/sigma_subset.py",
+      "scripts/rental/FREEZE.yaml"
+    ]
+  },
+  {
+    "archive_directory": "cyberai_slice1",
+    "files": 70,
+    "not_in_round18": [],
+    "changed_in_round18": [
+      "CONFIG_STATUS.md",
+      "artifacts/bundle_artifacts.tar.gz",
+      "artifacts/preflight.json",
+      "detection_verifier/checker.py",
+      "detection_verifier/sigma_subset.py",
+      "tests/test_config_freeze.py",
+      "scripts/rental/FREEZE.yaml"
+    ]
+  }
+]

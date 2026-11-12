@@ -15,7 +15,6 @@ check: lint test
 serve-smoke:
 	bash scripts/gb10_serve.sh smoke-test gb10_cloud hardware
 train-smoke:
-	@echo "BLOCKED: training/rental implementation is absent; see docs/PRE_RENTAL_READINESS.md"
-	@exit 1
+	bash scripts/run_smoke.sh
 bench:
 	uv run python scripts/measure_throughput.py --host-env gb10_cloud --evidence hardware

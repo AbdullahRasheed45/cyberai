@@ -1,0 +1,7 @@
+title: any apostrophe (trivial)
+logsource:
+  category: web_request
+detection:
+  sel:
+    QueryString|contains: "'"
+  condition: sel
