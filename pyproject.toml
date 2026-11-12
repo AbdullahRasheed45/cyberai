@@ -18,7 +18,7 @@ testpaths = ["tests"]
 filterwarnings = ["error"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["libs", "rental", "detection_verifier"]
+packages = ["libs", "rental", "detection_verifier", "lab"]
 
 [build-system]
 requires = ["hatchling"]

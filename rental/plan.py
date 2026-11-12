@@ -292,6 +292,11 @@ def measure_cmd(rc):
 
 
 def workload_cmd(rc):
+    if rc.workload_domain == "web":
+        return [sys.executable, "scripts/rental/45_web_offensive_workflow.py"], {
+            **host_env(rc, rc.adapter_served_id),
+            "WORKLOAD_DOMAIN": rc.workload_domain,
+        }
     return [sys.executable, "scripts/rental/40_workload.py"], {
         **host_env(rc, rc.adapter_served_id),
         "WORKLOAD_DOMAIN": rc.workload_domain,

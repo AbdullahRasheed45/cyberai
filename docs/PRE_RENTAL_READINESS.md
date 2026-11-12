@@ -97,3 +97,34 @@ Inference harness separates TTFT/decode estimates and request latency from actua
 Require actual GB10 serving, representative train/save/fresh-reload, real adapter deployment and correct output, measured memory/storage headroom, and verified off-instance evidence export. Full product trial also requires the prepared offensive/defensive lab workflow. Compare total measured cycle time including load/compilation/eval/export to the owner's accepted workload/cadence. Missing/failed required results prevent a positive recommendation. Do not infer six-domain mastery, recurring weight improvement or held-out gain from platform smokes.
 
 Offline evidence: combined suite 201 passed, 2 skipped (Torch-dependent CPU checks unavailable); web export emits three examples; unresolved freeze aborts before Docker; lint/format and compilation checked. No GB10, training, adapter-deployment or separate-lab runtime check has been executed here. Bash lifecycle execution remains unverified on this Windows host.
+# Authorised offensive web workflow (offline evidence)
+
+The development slice in `lab/web_workflow/` is the smallest complete
+offensive-first workflow. It is a symbolic, resettable owned-lab scenario only:
+it cannot contact a host, execute a command, accept a URL, or accept arbitrary
+payloads. It connects a bounded action interface, independent primary/shadow
+offensive verifiers, telemetry, defensive patch plus independent retest, and
+append-only provenance-tagged JSONL evidence.
+
+Run its offline evidence suite before rental:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_web_reference_workflow.py --case all --out artifacts\web_reference_evidence.jsonl
+.\.venv\Scripts\python.exe -m pytest tests\test_offensive_web_workflow.py -q
+```
+
+Expected offline cases are `VERIFIED` then `REMEDIATED` (success),
+`NOT_VERIFIED` (failed), `UNVERIFIABLE_PRE_SATISFIED`, and `ALREADY_PATCHED`.
+Only the verified-and-remediated scripted reference record is eligible for the
+development pilot; none is acceptance data. `configs/six_domain_curriculum.yaml`
+retains the six-domain easy-to-hard inventory and resource-aware schedule; only
+the web reference is implemented.
+
+The GPU-only runner is deliberately separate. After adapter deployment, the
+web `WORKLOAD_DOMAIN` invokes `scripts/rental/45_web_offensive_workflow.py`.
+It asks Qwen for a strict JSON action plan, rejects any plan outside the owned
+scenario, and records task success, API-reported prompt/completion tokens,
+action count, monotonic runtime, and failure category in
+`artifacts/run_<RUN_ID>/web_offensive_workflow_result.json`. It does not prove
+GPU compatibility, model quality, or model-weight improvement until run on the
+rented machine.

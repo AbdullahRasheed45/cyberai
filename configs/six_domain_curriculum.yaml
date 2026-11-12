@@ -1,0 +1,30 @@
+# Product inventory only: planned entries are not implemented lab claims.
+version: 1
+domains:
+  web:
+    status: implemented_offline_reference
+    levels: [route_mapping, seeded_boundary, composed_workflow, stateful_constraints, withheld_family]
+    resource_profile: light_container
+  linux:
+    status: planned
+    levels: [mapping, seeded_permission, bounded_chain, noisy_constraints, withheld_configuration]
+    resource_profile: light_vm
+  windows:
+    status: planned
+    levels: [mapping, seeded_service, bounded_chain, endpoint_constraints, withheld_image]
+    resource_profile: separate_vm_batch
+  active_directory:
+    status: planned
+    levels: [mapping, seeded_identity, multi_host_path, segmented_topology, withheld_topology]
+    resource_profile: multi_host_exclusive
+  cloud:
+    status: planned
+    levels: [mapping, seeded_iam, sandbox_chain, guardrails, provider_validation]
+    resource_profile: provider_sandbox_or_emulation
+  mobile:
+    status: planned
+    levels: [mapping, seeded_app_flaw, app_backend_chain, release_constraints, withheld_app]
+    resource_profile: emulator_batch
+scheduling:
+  policy: resource_aware_sequential_activation
+  note: planned domains do not imply available lab environments.

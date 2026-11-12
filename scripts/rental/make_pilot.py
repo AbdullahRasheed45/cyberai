@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 from rental.pilot import build_pilot_examples
-from rental.web_pilot import build_web_pilot_examples
+from rental.web_pilot import build_web_offensive_pilot_examples, build_web_pilot_examples
 
 
 def main():
@@ -16,6 +16,11 @@ def main():
     args = parser.parse_args()
     builder = build_web_pilot_examples if args.domain == "web" else build_pilot_examples
     rows = builder(f"fixtures/{args.domain}")
+    if args.domain == "web":
+        rows += build_web_offensive_pilot_examples()
+    evidence = "; ".join(
+        ("development-only fixture/reference plumbing", "no learning or acceptance claim")
+    )
     with args.out.open("x", encoding="utf-8") as output:
         for row in rows:
             output.write(json.dumps(row) + "\n")
@@ -25,7 +30,7 @@ def main():
                 "file": str(args.out),
                 "examples": len(rows),
                 "domain": args.domain,
-                "evidence": "public fixture plumbing; no learning or offensive-outcome claim",
+                "evidence": evidence,
             }
         )
     )

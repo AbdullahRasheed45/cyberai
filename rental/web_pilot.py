@@ -7,6 +7,7 @@ import yaml
 
 from detection_verifier.checker import WEB_REQUEST_SCHEMA, check_rule
 from detection_verifier.evaluation import load_split
+from lab.web_workflow.reference import run_reference_case
 
 
 def _gate_target_generalizes(fixtures_dir: str, good_rule_doc: dict) -> None:
@@ -57,6 +58,50 @@ def build_web_pilot_examples(fixtures_dir: str) -> list[dict]:
             }
         )
     return examples
+
+
+def build_web_offensive_pilot_examples() -> list[dict]:
+    """Build a development-only long trace, separate from rule-generation data."""
+    # This is a development-only, verifier-backed reference trace. It uses no
+    # challenge/acceptance data. Repeated observations exercise long-context
+    # packing only; the metadata prevents treating repetition as extra coverage.
+    record = run_reference_case("success")
+    trace = json.dumps(
+        {
+            "provenance": record.provenance,
+            "actions": record.actions,
+            "telemetry": record.telemetry,
+            "offensive_verdict": record.offensive_verdict,
+            "defensive_verdict": record.defensive_verdict,
+        },
+        sort_keys=True,
+    )
+    long_context = "\n".join(f"reference-observation-{i}: {trace}" for i in range(24))
+    return [
+        {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": (
+                        "Owned-lab development trajectory. Summarise the bounded next action "
+                        "after the verified offensive evidence and remediation retest.\n"
+                        + long_context
+                    ),
+                },
+                {
+                    "role": "assistant",
+                    "content": "Record remediation evidence; do not claim acceptance success.",
+                },
+            ],
+            "metadata": {
+                "source": "scripted_reference_workflow",
+                "training_split": "development_only",
+                "acceptance_data_read": False,
+                "long_context_repetition": 24,
+                "trajectory_id": record.trajectory_id,
+            },
+        }
+    ]
 
 
 if __name__ == "__main__":  # pragma: no cover
