@@ -1,5 +1,8 @@
 # Start here: 24-hour DGX Spark hardware trial
 
+New to this? Read `OWNER_GUIDE_GB10_TRIAL.md` first: the same steps explained in plain
+English, with what each result means. This file is the exact command reference.
+
 Use `MEASUREMENTS_AND_TRACKING.md` to capture command logs, host/device telemetry,
 tokens, training steps, failures and download timing on either execution path.
 
