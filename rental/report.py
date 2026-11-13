@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import hashlib
 import os
+import shutil
 import tarfile
+from pathlib import Path
 
 
 def arcname(path: str) -> str:
@@ -24,6 +26,26 @@ def sha256_file(path: str) -> str:
         for chunk in iter(lambda: f.read(65536), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def copy_verified_bundle(source: str, destination: str) -> dict:
+    """Copy to an existing mounted export directory and verify read-back bytes.
+
+    A successful receipt proves this filesystem copy, not that the mount is
+    physically off-instance; the operator must establish that separately.
+    """
+    src, directory = Path(source).resolve(), Path(destination).resolve()
+    if not directory.is_dir() or directory == src.parent or directory.is_relative_to(src.parent):
+        raise ValueError("export destination must exist outside the run directory")
+    target = directory / src.name
+    with target.open("xb") as output, src.open("rb") as incoming:
+        shutil.copyfileobj(incoming, output)
+        output.flush()
+        os.fsync(output.fileno())
+    expected = sha256_file(str(src))
+    if sha256_file(str(target)) != expected:
+        raise ValueError("export read-back hash mismatch")
+    return {"destination": str(target), "sha256": expected, "readback_verified": True}
 
 
 def build_manifest(evidence: list[str], inference_artifacts: list[str]) -> dict:

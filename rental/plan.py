@@ -293,9 +293,10 @@ def measure_cmd(rc):
 
 def workload_cmd(rc):
     if rc.workload_domain == "web":
-        return [sys.executable, "scripts/rental/45_web_offensive_workflow.py"], {
+        return [sys.executable, "scripts/rental/46_live_web_workflow.py"], {
             **host_env(rc, rc.adapter_served_id),
             "WORKLOAD_DOMAIN": rc.workload_domain,
+            "LAB_SSH_HOST": os.environ.get("LAB_SSH_HOST", ""),
         }
     return [sys.executable, "scripts/rental/40_workload.py"], {
         **host_env(rc, rc.adapter_served_id),
@@ -307,6 +308,8 @@ def export_cmd(rc):
     return [sys.executable, "scripts/rental/50_export.py"], {
         **_base_env(rc),
         "SMOKE_OUT": rc.output_dir_rel,
+        "FREEZE": os.environ.get("FREEZE", "scripts/rental/FREEZE.yaml"),
+        "EVIDENCE_EXPORT_DIR": os.environ.get("EVIDENCE_EXPORT_DIR", ""),
     }
 
 

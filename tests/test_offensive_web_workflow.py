@@ -81,7 +81,7 @@ def test_web_rental_workload_uses_offensive_workflow_runner():
         run_id="test",
     )
     command, env = workload_cmd(config)
-    assert command[-1] == "scripts/rental/45_web_offensive_workflow.py"
+    assert command[-1] == "scripts/rental/46_live_web_workflow.py"
     assert env["WORKLOAD_DOMAIN"] == "web"
 
 

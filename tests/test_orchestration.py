@@ -88,6 +88,7 @@ def test_host_envs_derived_from_one_config():
         "SERVED_MODEL": "smoke",
         "ARTIFACT_DIR": rc.artifact_dir,
         "WORKLOAD_DOMAIN": "web",
+        "LAB_SSH_HOST": os.environ.get("LAB_SSH_HOST", ""),
     }
 
 

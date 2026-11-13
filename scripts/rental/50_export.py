@@ -11,7 +11,13 @@ def main():
     import sys
 
     from rental.paths import artifact_dir
-    from rental.report import arcname, build_manifest, verify_archive, write_archive
+    from rental.report import (
+        arcname,
+        build_manifest,
+        copy_verified_bundle,
+        verify_archive,
+        write_archive,
+    )
 
     adir = artifact_dir()
     os.makedirs(adir, exist_ok=True)
@@ -24,8 +30,11 @@ def main():
             adir, "orchestration.json"
         ),  # phase log, real commands, resolved config, releases
         os.path.join(out_dir, "train_meta.json"),
-        "scripts/rental/FREEZE.yaml",
+        os.environ.get("FREEZE", "scripts/rental/FREEZE.yaml"),
     ]
+    trajectories = os.path.join(adir, "web_offensive_trajectories.jsonl")
+    if os.path.isfile(trajectories):
+        evidence.append(trajectories)
     inference_artifacts = [
         os.path.join(out_dir, "adapter", "adapter_config.json"),
         os.path.join(out_dir, "adapter", "adapter_model.safetensors"),
@@ -45,6 +54,13 @@ def main():
         "label": "evidence bundle + inference artifacts (adapter = inference/fresh-optimiser "
         "restart, NOT faithful training resume)",
     }
+    destination = os.environ.get("EVIDENCE_EXPORT_DIR")
+    if destination:
+        try:
+            out["durable_copy"] = copy_verified_bundle(tar, destination)
+        except (OSError, ValueError) as exc:
+            out["durable_copy"] = {"error": str(exc)}
+            ok = False
     Path(os.path.join(adir, "export_result.json")).write_text(
         json.dumps(out, indent=2), encoding="utf-8"
     )
