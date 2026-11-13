@@ -1,0 +1,220 @@
+<mxfile host="app.diagrams.net" modified="2026-11-10T00:00:00.000Z" agent="brief-builder" version="24.0.0">
+  <diagram id="master" name="Master Comprehensive Workflow">
+    <mxGraphModel dx="2000" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2400" pageHeight="1800" math="0" shadow="0" background="#ffffff">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ============ TITLE ============ -->
+        <mxCell id="title" value="AUTONOMOUS SELF-IMPROVING CYBERSECURITY AI — MASTER WORKFLOW (v1.1)" style="text;html=1;fontSize=22;fontStyle=1;align=center;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="500" y="20" width="1400" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="Spark &#8596; Lab connection · data flow · thinking flow · day/night/morning workflow · two learning loops · gates. All black &amp; white." style="text;html=1;fontSize=12;fontStyle=2;align=center;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="500" y="52" width="1400" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- ============ DGX SPARK BOUNDARY ============ -->
+        <mxCell id="spark" value="DGX SPARK — the engine (128GB, 273 GB/s). Day: serve · Night: train · Morning: gate (time-slice, never parallel)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;strokeWidth=3;verticalAlign=top;fontStyle=1;fontSize=14;fontColor=#000000;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="1500" height="1180" as="geometry" />
+        </mxCell>
+
+        <!-- ===== THINKING FLOW (top strip of spark) ===== -->
+        <mxCell id="think_hdr" value="THINKING / REASONING FLOW (one agent turn)" style="text;html=1;fontSize=12;fontStyle=1;align=left;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="70" y="140" width="400" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="vllm" value="vLLM ENDPOINT (FP8, multi-LoRA)&#10;ONE model loaded once · adapter = gen_N&#10;continuous batching · prefix caching" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="165" width="250" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="prefill" value="1. PREFILL&#10;(read prompt,&#10;fill KV cache)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="350" y="165" width="130" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="decode" value="2. DECODE&#10;(token by token,&#10;adaptive think cap)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="500" y="165" width="130" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="toolloop" value="3. TOOL LOOP&#10;try &#8594; observe &#8594; adjust&#10;(nmap/shell/CVE-mirror)&#10;repeat until done" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="650" y="165" width="160" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="traj" value="4. TRAJECTORY&#10;(provenance-tagged)&#10;&#8594; trajectory store" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="830" y="165" width="150" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="te1" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;" edge="1" parent="1" source="vllm" target="prefill"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="te2" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;" edge="1" parent="1" source="prefill" target="decode"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="te3" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;" edge="1" parent="1" source="decode" target="toolloop"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="te4" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;" edge="1" parent="1" source="toolloop" target="traj"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ===== AGENT POPULATION ===== -->
+        <mxCell id="pop" value="AGENT POPULATION (ai-orchestrator)&#10;large LOGICAL population cycled through one endpoint (NOT concurrent)&#10;each agent = config row (role, prompt, tools, adapter_id)&#10;MAP-Elites (best-in-cell) · hybrid cooperation: blackboard | distributed · blind agents + critic (anti-groupthink)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;fontStyle=1;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="1010" y="165" width="500" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="te5" value="agents run" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;" edge="1" parent="1" source="pop" target="vllm"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ===== AUTH GATE ===== -->
+        <mxCell id="authz" value="AUTHZ GATE (OPA, enforced in CODE, not a prompt)&#10;skill &#8800; authorisation · OWNERSHIP VERIFIED (not token-trust)&#10;3 tiers: read-only auto / sandbox auto / production = human-signed token" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;fontStyle=1;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="70" y="290" width="470" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- ===== DATA FLOW core (middle of spark) ===== -->
+        <mxCell id="df_hdr" value="DATA FLOW (verified experience &#8594; training)" style="text;html=1;fontSize=12;fontStyle=1;align=left;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="70" y="410" width="400" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="trajstore" value="TRAJECTORY STORE&#10;Postgres + object store&#10;(provenance-tagged)" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="70" y="440" width="180" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="verifier" value="ASSURED VERIFIER (deterministic, SEALED)&#10;did root fall? · TP/FP · hole closed AND alive&#10;NEVER an LLM grader&#10;§6.6 assurance: ground-truth seeds · planted false-positives · dual-checker disagreement alarm" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;fontStyle=1;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="290" y="440" width="470" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- three outcomes -->
+        <mxCell id="verified" value="VERIFIED&#10;&#8594; training data" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="290" y="580" width="140" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="failed" value="FAILED&#10;&#8594; analysis" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="450" y="580" width="140" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="escrow" value="UNVERIFIABLE &#8594; CANDIDATE BANK (escrow)&#10;never rewarded/deleted · grow verifier (human-paced) · human review" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="610" y="575" width="300" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="builder" value="DATASET BUILDER&#10;dedupe · poison-screen (ext data) · SEED-REPLAY&#10;DIVERSITY CAP (no template &gt;15%)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;fontStyle=1;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="70" y="670" width="340" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ===== LOOP B GATE ===== -->
+        <mxCell id="loopbgate" value="LOOP B PRE-REGISTERED GATE (measure before betting)&#10;floor 300 verified-unique/day (aspirational 800 &#8594; 2400/3-day round)&#10;LOWER bar if ~100-pilot SFT beats sealed bench&#10;GIVE UP (park Loop B) if full round fails sealed bench TWICE" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;fontStyle=1;align=left;spacingLeft=8;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="450" y="670" width="460" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ===== TRAINING (night) ===== -->
+        <mxCell id="train" value="LOOP B — TRAINING (NIGHT, gated)&#10;Unsloth + TRL · SFT LoRA (FROZEN ROUTER) &#8594; optional GRPO&#10;&#8594; candidate adapter gen_N+1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;fontStyle=1;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="70" y="790" width="340" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- ===== EVAL + GATE (morning) ===== -->
+        <mxCell id="eval" value="SEALED EVAL HARNESS (MORNING)&#10;separate service — learning engine CANNOT read scenarios&#10;benchmark · forgetting canaries · FP-rate &amp; stat gate" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;fontStyle=1;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="450" y="790" width="460" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="promote" value="PROMOTION CONTROLLER + HUMAN APPROVAL&#10;&#8594; promote gen_N+1 (whole population inherits smarter brain)&#10;or reject · golden anchor if excellent · rollback+resume on drift" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;fontStyle=1;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="450" y="880" width="460" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ===== REGISTRY + LOGS ===== -->
+        <mxCell id="registry" value="MODEL REGISTRY (MLflow)&#10;base · adapters · data hash · config&#10;scores · lineage · golden anchors&#10;immutable generations (never overwrite)" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="70" y="980" width="230" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="logs" value="OBSERVABILITY (6 log groups, every gen)&#10;1 training · 2 MoE routing · 3 eval&#10;4 data lineage+curriculum · 5 verifier-health · 6 config/env&#10;keep logs forever · prune old datasets behind anchors" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="330" y="980" width="340" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="mirror" value="LOCAL MIRRORS&#10;CVE/NVD/KEV/ATT&amp;CK&#10;(agent lookups, no raw internet)" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="700" y="980" width="220" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- ===== TWO LOOPS LABEL ===== -->
+        <mxCell id="loopA" value="LOOP A (fast, continuous): configs/strategy/knowledge/#3-cache &#8594; &quot;how to use the brain&quot; · effective reasoning rises via elicitation" style="text;html=1;fontSize=11;fontStyle=2;align=left;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="440" width="500" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="loopBlbl" value="LOOP B (slow, gated): weights gen_N&#8594;gen_N+1 &#8594; &quot;the brain itself&quot; · the real fine-tuning · capacity grows only at verified-volume rate" style="text;html=1;fontSize=11;fontStyle=2;align=left;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="465" width="500" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="compound" value="COMPOUNDING: better configs &#8594; better verified data &#8594; smarter weights &#8594; even same configs produce better attempts &#8594; repeat" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="500" width="500" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- ===== CURRICULUM ===== -->
+        <mxCell id="curric" value="CURRICULUM CONTROLLER (difficulty-LED &#8594; forces novelty)&#10;PRIMARY: ratchet lab difficulty ahead of success rate (productive-struggle zone)&#10;SECONDARY: domains cumulative web&#8594;Linux&#8594;Windows&#8594;AD&#8594;cloud&#8594;mobile (never swapped)&#10;+ free-exploration reserve · curates WHAT (targets) never HOW (methods) · logged per gen" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;fontStyle=1;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="600" width="510" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- ===== PHASE NOTE ===== -->
+        <mxCell id="phase" value="PHASE 1 (critical path / PROOF): assured WEB verifier + one SFT generation beats sealed benchmark.&#10;PHASE 2 (contingent on proof): population/MAP-Elites, GRPO, cooperation, speed #1/#2, curriculum across domains, recovery, commercial." style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;fontStyle=2;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="760" width="510" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="honest" value="HONEST LIMITS: ~1 generation/few-days (slow is SAFE; rushing = collapse) · no new reasoning CAPACITY beyond lab-volume rate · novelty bounded by verifier reach (human-paced to grow) · 800 hard wins/day likely beyond 1 Spark early (measure)." style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;fontStyle=2;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="870" width="510" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="threat" value="THREATS TO PLATFORM ITSELF (§3.5): poisoned ext datasets · AUTHORISED-SCOPE ABUSE (verify ownership!) · OSS supply-chain · weight exfiltration · scope-breach IR playbook before first external target." style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;fontStyle=2;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="980" width="510" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- data flow edges -->
+        <mxCell id="de0" value="authorised payloads" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;" edge="1" parent="1" source="pop" target="authz"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="de1" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;" edge="1" parent="1" source="traj" target="trajstore"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="de2" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;" edge="1" parent="1" source="trajstore" target="verifier"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="de3" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;" edge="1" parent="1" source="verifier" target="verified"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="de4" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;" edge="1" parent="1" source="verifier" target="failed"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="de5" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;dashed=1;" edge="1" parent="1" source="verifier" target="escrow"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="de6" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;" edge="1" parent="1" source="verified" target="builder"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="de7" value="gate" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;dashed=1;" edge="1" parent="1" source="builder" target="loopbgate"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="de8" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;" edge="1" parent="1" source="builder" target="train"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="de9" value="candidate" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;" edge="1" parent="1" source="train" target="eval"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="de10" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;" edge="1" parent="1" source="eval" target="promote"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="de11" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;" edge="1" parent="1" source="promote" target="registry"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="de12" value="gen_N+1 serves next day" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;dashed=1;" edge="1" parent="1" source="registry" target="vllm">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="30" y="1035" /><mxPoint x="30" y="210" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="de13" value="sets lab difficulty/domain" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;dashed=1;" edge="1" parent="1" source="curric" target="pop"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ============ WIREGUARD BOUNDARY ============ -->
+        <mxCell id="wg" value="WIREGUARD TUNNEL&#10;firewalled: Spark &#8594; lab&#10;sandbox IP ONLY · blind to&#10;home LAN · no plaintext creds&#10;&#10;§12.2 MUTUAL EXCLUSION:&#10;TARGET-SERVING mode&#10;XOR DETONATION mode&#10;(never both — enforced&#10;in code; tunnel DOWN&#10;during detonation)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;strokeWidth=2;fontColor=#000000;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1580" y="500" width="220" height="300" as="geometry" />
+        </mxCell>
+
+        <!-- ============ LAB BOUNDARY ============ -->
+        <mxCell id="lab" value="ISOLATED LAB — HP laptop (32GB), air-gapped, nothing personal" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;strokeWidth=3;verticalAlign=top;fontStyle=1;fontSize=14;fontColor=#000000;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1840" y="100" width="520" height="1180" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gateway" value="LAB-GATEWAY (only ingress)&#10;narrow API · consults STATE MANAGER&#10;refuses calls in DETONATION mode" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1870" y="150" width="460" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="runner" value="AGENT RUNNER&#10;executes authorised payload against in-scope target&#10;captures result &#8594; returns over tunnel for verification" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1870" y="250" width="460" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- TARGET SERVING MODE -->
+        <mxCell id="tsmode" value="STATE: TARGET-SERVING (Phase 1)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;verticalAlign=top;fontStyle=1;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1870" y="350" width="460" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="containers" value="PARALLEL LIGHT CONTAINERS (dozen+)&#10;DVWA · OWASP Juice Shop · Metasploitable&#10;Linux services · procedurally varied configs&#10;(revert = destroy &amp; recreate)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1900" y="390" width="400" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="heavyvm" value="SEQUENCED HEAVY VMs (one at a time)&#10;Windows analysis VM · full AD lab (Phase 2)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1900" y="490" width="400" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="atomic" value="Atomic Red Team scenarios (known answer keys)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1900" y="560" width="400" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- DETONATION MODE -->
+        <mxCell id="detmode" value="STATE: DETONATION (Phase 2) — TUNNEL DOWN, no route to gateway" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;verticalAlign=top;fontStyle=1;fontColor=#000000;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1870" y="680" width="460" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="detonation" value="MALWARE DETONATION (snapshot-reverted)&#10;no/fake net (INetSim) · CAPE/FLARE-VM/REMnux&#10;SERIAL + AIR-GAPPED · never cloud-parallelised&#10;separate NIC/VLAN, no route to tunnel" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1900" y="720" width="400" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="dash" value="ADMIN / APPROVAL DASHBOARD (human-in-the-loop)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1870" y="890" width="460" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="future" value="FUTURE (if a wall is hit): 64GB mini-PC (Proxmox, cheap DDR4 — lab is NOT bandwidth-sensitive)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;fontColor=#000000;fontStyle=2;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="1870" y="960" width="460" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- cross-machine edges -->
+        <mxCell id="xe1" value="authorised&#10;payload &#8594;" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;strokeWidth=2;" edge="1" parent="1" source="authz" target="wg"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="xe2" value="&#8594; to lab" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;strokeWidth=2;" edge="1" parent="1" source="wg" target="gateway"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="xe3" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;" edge="1" parent="1" source="gateway" target="runner"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="xe4" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;" edge="1" parent="1" source="runner" target="containers"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="xe5" value="&#8592; result /&#10;verdict" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;strokeWidth=2;dashed=1;" edge="1" parent="1" source="runner" target="wg"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="xe6" value="&#8592; to verifier" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;strokeColor=#000000;strokeWidth=2;dashed=1;" edge="1" parent="1" source="wg" target="verifier"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- legend -->
+        <mxCell id="legend" value="LEGEND:  solid arrow = primary flow   ·   dashed arrow = feedback / conditional / escrow   ·   cylinder = datastore   ·   thick border = machine boundary" style="text;html=1;fontSize=11;fontStyle=2;align=left;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1300" width="1400" height="20" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

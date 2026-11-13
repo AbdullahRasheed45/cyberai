@@ -1,0 +1,8 @@
+# PRE-REGISTERED. Do not edit after measuring (brief §7.8).
+floor_verified_unique_per_day: 300
+max_template_share: 0.15
+aspirational_per_day: 800
+revision_rule:
+  lower_bar_if: "a ~100-trajectory pilot SFT measurably beats the sealed benchmark"
+  give_up_if: "a full-volume round fails to beat the sealed benchmark twice in a row"
+  give_up_action: "park Loop B for the year; Loop A becomes committed engine"
