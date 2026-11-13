@@ -8,11 +8,15 @@ top-level env), so _post_stream is exercised by a mock streaming server. Honest:
  - a real context x concurrency MATRIX; warm cache PRIMED before warm runs; cold
    uses a per-request nonce prefix to defeat shared-prefix caching.
  - 'sampled_peak' memory and 'aggregate_output_tok_s' named accurately.
+ - failed/slow matrix cells are DATA (recorded, passed=false), not a reason to abort
+   the lifecycle before training; exit is nonzero only if the server is unusable.
+
+Tuning knobs (env; recorded in the artifact): MEASURE_CONTEXTS="8000,16000",
+MEASURE_CONCURRENCIES="1,8,32", MEASURE_REQUEST_TIMEOUT_S=600.
 """
 
 import json
 import os
-import subprocess
 import threading
 import time
 import urllib.error
@@ -21,6 +25,20 @@ import uuid
 
 from rental.clients import InferenceError, parse_completion, parse_stream_events, summarise
 from rental.paths import artifact_dir
+
+
+def _int_list(name, default):
+    raw = os.environ.get(name, "")
+    if not raw.strip():
+        return default
+    values = tuple(int(v) for v in raw.split(",") if v.strip())
+    if not values or any(v <= 0 for v in values):
+        raise ValueError(f"{name} must be a comma-separated list of positive integers")
+    return values
+
+
+def request_timeout_s():
+    return float(os.environ.get("MEASURE_REQUEST_TIMEOUT_S", "600"))
 
 
 def _post(url, model, prompt, max_tokens, stream):
@@ -39,7 +57,7 @@ def _post(url, model, prompt, max_tokens, stream):
     parsed = {}
     failure = None
     try:
-        with urllib.request.urlopen(req, timeout=300) as r:
+        with urllib.request.urlopen(req, timeout=request_timeout_s()) as r:
             if stream:
                 events = [(time.monotonic(), line.decode()) for line in r]
                 parsed = parse_stream_events(events)
@@ -123,22 +141,17 @@ def prefill_estimate(url, model, base_prompt, prompt_tokens):
 
 
 def _sampler(state):
+    from rental.telemetry import used_memory_gb
+
     while state["run"]:
-        try:
-            state["peak"] = max(
-                state["peak"],
-                float(
-                    subprocess.check_output(
-                        ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
-                        timeout=3,
-                    ).split()[0]
-                )
-                / 1024,
-            )
-        except Exception:
+        value, source = used_memory_gb()
+        if value is None:
             state["peak"] = None
+            state["source"] = source
             return
-        time.sleep(0.2)
+        state["peak"] = max(state["peak"] or 0.0, value)
+        state["source"] = source
+        time.sleep(0.5)
 
 
 def run_matrix(url, model, contexts=(8000, 16000), concurrencies=(1, 8, 32)):
@@ -159,10 +172,16 @@ def run_matrix(url, model, contexts=(8000, 16000), concurrencies=(1, 8, 32)):
                 "wall_s": time.monotonic() - t0,
             }
 
-    out = {"matrix": {}}
+    out = {"matrix": {}, "context_errors": {}}
     for ctx in contexts:
-        prompt, pt = grow_to_target(url, model, ctx)
-        out[f"prefill_estimate_ctx_{ctx}"] = prefill_estimate(url, model, prompt, pt)
+        # One context failing (e.g. too long for max_model_len, or a timeout while
+        # growing the prompt) is recorded and the next context still runs.
+        try:
+            prompt, pt = grow_to_target(url, model, ctx)
+            out[f"prefill_estimate_ctx_{ctx}"] = prefill_estimate(url, model, prompt, pt)
+        except Exception as exc:
+            out["context_errors"][str(ctx)] = f"{type(exc).__name__}: {exc}"
+            continue
         for conc in concurrencies:
             # cold: unique nonce prefix per request (defeats shared-prefix cache)
             with cf.ThreadPoolExecutor(max_workers=conc) as ex:
@@ -185,7 +204,11 @@ def run_matrix(url, model, contexts=(8000, 16000), concurrencies=(1, 8, 32)):
             )
             out["matrix"][f"ctx{ctx}_conc{conc}_cold"] = s
         # warm: prime the shared prompt once, then measure repeats at top concurrency
-        _post(url, model, prompt, 1, stream=False)
+        try:
+            _post(url, model, prompt, 1, stream=False)
+        except Exception as exc:
+            out["context_errors"][f"{ctx}_warm_prime"] = f"{type(exc).__name__}: {exc}"
+            continue
         with cf.ThreadPoolExecutor(max_workers=concurrencies[-1]) as ex:
             t0 = time.monotonic()
             recs = list(
@@ -208,14 +231,21 @@ def run_matrix(url, model, contexts=(8000, 16000), concurrencies=(1, 8, 32)):
 
 
 def main():
-    state = {"run": True, "peak": 0.0}
+    state = {"run": True, "peak": None, "source": "not_sampled"}
     sampler = threading.Thread(target=_sampler, args=(state,), daemon=True)
-    res = {"passed": False}
+    res = {"passed": False, "server_functional": False}
     start = time.monotonic()
     sampler.start()
     try:
         url = os.environ["VLLM_URL"]
         model = os.environ.get("SERVED_MODEL", "qwen3")
+        contexts = _int_list("MEASURE_CONTEXTS", (8000, 16000))
+        concurrencies = _int_list("MEASURE_CONCURRENCIES", (1, 8, 32))
+        res["settings"] = {
+            "contexts": list(contexts),
+            "concurrencies": list(concurrencies),
+            "request_timeout_s": request_timeout_s(),
+        }
         records = []
         res["single_stream_requests"] = records
         for i in range(3):
@@ -224,9 +254,11 @@ def main():
             except Exception as exc:
                 records.append({"ok": False, "error": f"{type(exc).__name__}: {exc}"})
         res["single_stream"] = summarise(records)
-        res.update(run_matrix(url, model))
+        res["server_functional"] = res["single_stream"]["n_ok"] > 0
+        res.update(run_matrix(url, model, contexts, concurrencies))
         res["passed"] = (
             all(condition["n_failed"] == 0 for condition in res["matrix"].values())
+            and not res["context_errors"]
             and res["single_stream"]["n_failed"] == 0
         )
     except Exception as exc:
@@ -235,12 +267,15 @@ def main():
         state["run"] = False
         sampler.join(timeout=5)
         res["total_runtime_s"] = time.monotonic() - start
-        res["sampled_peak_gpu_mem_GB"] = state["peak"]
+        res["sampled_peak_mem_GB"] = state["peak"]
+        res["sampled_peak_mem_source"] = state["source"]
         os.makedirs(artifact_dir(), exist_ok=True)
         with open(os.path.join(artifact_dir(), "inference_measurements.json"), "w") as output:
             json.dump(res, output, indent=2)
         print(json.dumps(res, indent=2))
-    return 0 if res["passed"] else 1
+    # Matrix failures/timeouts are recorded evidence (passed=false) and must not stop
+    # the lifecycle before training; only an unusable server or a crash does.
+    return 0 if res["server_functional"] and "error" not in res else 1
 
 
 if __name__ == "__main__":
