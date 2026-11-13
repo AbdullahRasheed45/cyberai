@@ -44,7 +44,6 @@ bash scripts/gb10_serve.sh preflight-container
 
 # 3. See the exact command that would run, without running it:
 bash scripts/gb10_serve.sh render primary
-bash scripts/gb10_serve.sh render dense_fallback --lora
 
 # 4. Start (detached). First model load is slow (minutes) — don't mistake
 #    "not answering yet" for broken; use smoke-test once, then watch logs.
@@ -66,8 +65,11 @@ uv run python scripts/measure_throughput.py --host-env gb10_cloud --evidence har
 bash scripts/gb10_serve.sh diagnose
 ```
 
-`start`/`render` take `primary` (Qwen3-30B-A3B FP8) or `dense_fallback`
-(Qwen3-14B dense) and an optional `--lora`. `--lora` against `primary` is
+`start`/`render` take `primary` (Qwen3-30B-A3B FP8 — the only model; the dense
+Qwen3-14B fallback was removed by owner decision, DECISIONS_TO_REVISIT.md R-009)
+and an optional `--lora`. On a sandboxed provider (Enverge), first run
+`python3 scripts/rental/docker_runtime_setup.py` and `source
+artifacts/docker_runtime/docker_env.sh` so these commands use the working GPU flags. `--lora` against `primary` is
 **refused** unless `configs/serving.yaml`'s `require_lora_fp8_verified` is
 flipped to `true` — and that should only happen after a real hardware
 correctness check, not merely "the server didn't crash" (see PROVENANCE.md

@@ -129,9 +129,17 @@ Never substitute repeated short rows as diverse trajectories.
 
 ```bash
 uv run python -c 'import subprocess,yaml; c=yaml.safe_load(open("scripts/rental/FREEZE.yaml")); [subprocess.run(["docker","pull",c[k]],check=True) for k in ("vllm_image","unsloth_image")]'
+# Measure which Docker GPU/IPC/ulimit/network flags work here and save them.
+# REQUIRED on Enverge (sandboxed Docker-in-Docker: `--gpus all` fails there).
+python3 scripts/rental/docker_runtime_setup.py
+source artifacts/docker_runtime/docker_env.sh   # repeat in EVERY new terminal
 timeout 1800 uv run python scripts/rental/collect_image_pins.py
 export FREEZE=artifacts/image_pin_collection/FREEZE.image-versions.yaml
 ```
+
+`docker_runtime_setup.py` must end with `"status": "READY"`. If it says `BLOCKED`,
+read `blockers` in `artifacts/docker_runtime/docker_runtime.json` and stop: no GPU
+mode, or containers unable to read/write this checkout, cannot be worked around.
 
 The probe runs each image through `bash -lc`, the same login shell the trainer uses,
 and records the interpreter path (`"python"` in `probes.json`) so the probed and
@@ -154,10 +162,11 @@ Both training and fresh reload share `runs/hf_cache`, mounted at `/hf-cache` wit
 HF_HOME set. This avoids repeated downloads across matrix cells. The cache is
 on the rental filesystem; it is not automatically durable beyond termination.
 
-Current candidates are Qwen3-30B-A3B-Instruct-2507 MoE: official FP8 serving and
-the lineage-matched Unsloth trainable base. Instruct-2507 is non-thinking. Native
-reasoning and the planned model comparison remain requirements; do not claim
-they were validated by this candidate alone.
+Model (owner decision): **Qwen3-30B-A3B MoE only** — Instruct-2507 (released July
+2025; the newest Qwen3-30B-A3B text release, and the model for the 15 January 2027
+fine-tune target). Serving uses the official FP8 checkpoint; training uses the
+lineage-matched Unsloth copy of the same BF16 weights. Instruct-2507 is non-thinking;
+the reasoning comparison against Thinking-2507 remains a separate decision.
 
 ```bash
 uv run python scripts/rental/check_preparation.py
@@ -231,6 +240,26 @@ to save time on a shared-memory device.
 
 ## 8. Training matrix after the first path works
 
+Training precision (owner decision): **4-bit QLoRA is the default** (`precision:
+qlora_4bit` in `configs/training.yaml`). bf16 is run only as a comparison, with
+`TRAIN_PRECISION=bf16`, and adopted only if its measured tokens/sec is clearly better.
+FP8 training is not used. Compare `steady_state_tok_s`, `steady_state_seconds_per_step`
+and `train_peak_mem_GB` in each run's `train_meta.json`; change only the precision.
+
+First comparison cell (same everything as the first lifecycle run except precision):
+
+```bash
+export UNSLOTH_IMAGE="$(uv run python -c 'import os,yaml; print(yaml.safe_load(open(os.environ["FREEZE"]))["unsloth_image"])')"
+export SMOKE_MODEL="$(uv run python -c 'import os,yaml; print(yaml.safe_load(open(os.environ["FREEZE"]))["trainable_base_repo"])')"
+export SMOKE_REVISION="$(uv run python -c 'import os,yaml; print(yaml.safe_load(open(os.environ["FREEZE"]))["trainable_base_commit"])')"
+export RUN_ID=training_bf16_s2048_b1 SMOKE_OUT=runs/training_bf16_s2048_b1
+export TRAIN_PRECISION=bf16 TRAIN_MAX_SEQ_LENGTH=2048 TRAIN_BATCH_SIZE=1
+uv run python scripts/rental/track_command.py --out artifacts/tracked_$RUN_ID.json   --timeout 10800 -- bash scripts/run_smoke.sh
+unset TRAIN_PRECISION   # back to the qlora_4bit default for the remaining cells
+```
+
+Then the sequence-length cells (default precision):
+
 To avoid repeating serving for every cell, load the reviewed identities:
 
 ```bash
@@ -240,7 +269,7 @@ export SMOKE_REVISION="$(uv run python -c 'import os,yaml; print(yaml.safe_load(
 export RUN_ID=training_s4096_b1
 export SMOKE_OUT=runs/training_s4096_b1
 export TRAIN_MAX_SEQ_LENGTH=4096 TRAIN_BATCH_SIZE=1
-bash scripts/run_smoke.sh
+uv run python scripts/rental/track_command.py --out artifacts/tracked_$RUN_ID.json   --timeout 10800 -- bash scripts/run_smoke.sh
 ```
 
 Keep TRAIN_MODE, PILOT_DATA, steps/accumulation/warm-up set from above. Then use a

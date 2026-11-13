@@ -1,4 +1,4 @@
-# Enverge: two execution paths and download budget
+# Enverge: sandboxed Docker setup, fallback path and download budget
 
 For measured execution and saved console/telemetry logs on either path, use the
 command wrapper in `MEASUREMENTS_AND_TRACKING.md`.
@@ -8,12 +8,27 @@ shutdown steps. This provider-specific supplement takes precedence on access.
 
 ## Provider facts and limits
 
-Enverge's operational docs describe Linux rentals as containers reached over an
-SSH relay, despite bare-metal language on the Spark marketing page. Custom GPU
-Docker execution is not established by that marketing. Storage is ephemeral;
-copy results before deleting the instance. Only deletion stops metered billing.
-Actual portal pricing applies; the landing page currently advertises $0.85/hour
-for one Spark, so 24 hours would be $20.40 before tax at that rate.
+Owner-confirmed 13 November 2026: Enverge provides real NVIDIA GB10 (ARM64, 128 GB
+unified memory) hardware. Your SSH session lands **inside an unprivileged container
+sandbox** on the DGX Spark, not on the bare host, and you are **not root**. Docker is
+pre-installed and running inside that sandbox (Docker-in-Docker), and containers can
+use the GPU — but the NVIDIA runtime runs in **no-cgroups mode**, so the usual
+`--gpus all` flag fails. GPU containers need `--runtime nvidia -e
+NVIDIA_VISIBLE_DEVICES=all` or `--device nvidia.com/gpu=all` instead.
+
+Consequences handled by this repository:
+- Every container this project starts takes its GPU/IPC/ulimit/network flags from
+  `rental/docker_runtime.py` (`DOCKER_*` environment variables), measured on the
+  machine by `scripts/rental/docker_runtime_setup.py`. No code edits are needed.
+- Not being root: the page-cache drop before serving/training is recorded as
+  `not_permitted` and the run continues; it is an optimisation, not a requirement.
+- `nvidia-smi` may not exist in the sandbox itself. Preflight then asks for the GPU
+  name from inside the pinned vLLM image. The dashboard's GPU utilisation panel may
+  read "unavailable"; host RAM (the real memory signal on unified memory) still works.
+
+Storage is ephemeral; copy results before deleting the instance. Only deletion stops
+metered billing. The landing page advertised $0.85/hour (24 h = $20.40 before tax);
+the portal price applies.
 
 Sources checked 13 November:
 - https://enverge.ai/docs/instances
@@ -23,31 +38,38 @@ Sources checked 13 November:
 
 ## First commands after connecting
 
-Clone the reviewed feature branch as in RENTAL_START_HERE.md. Then, using the
-provider's existing GPU-enabled Python interpreter:
+Clone the reviewed feature branch as in RENTAL_START_HERE.md, then take an inventory
+with the sandbox's own Python (installs nothing, downloads nothing):
 
 ```bash
 python3 scripts/rental/provider_probe.py --out artifacts/enverge_initial_probe.json
 ```
 
-This standard-library entrypoint needs no project installation. It inventories
-architecture, driver, Docker daemon and existing package/CUDA/FastModel execution.
-It downloads no weights and installs nothing. It has bounded subprocess timeouts.
-Review its JSON; status INVENTORY_ONLY_REVIEW_REQUIRED is not an acceptance pass.
-No Docker daemon or missing existing libraries is recorded, not silently repaired.
+## A: Docker-in-Docker with the GPU (the expected Enverge route)
 
-## A: custom GPU Docker works
+1. Pull the two pinned images (RENTAL_START_HERE.md step 5, first command only).
+2. Measure which Docker flags work in this sandbox and save them:
 
-Use the existing pinned-image route in RENTAL_START_HERE.md. `docker info` alone
-does not prove GPU access or usable volume mounts. Pull the exact images and run
-collect_image_pins.py: its actual GPU probes must succeed. Confirm the host path
-mounted at /work contains this checkout. With a host-mounted daemon, paths may
-refer to the provider host rather than your SSH container; do not assume identical
-paths. Verify the repository mount before training.
+```bash
+python3 scripts/rental/docker_runtime_setup.py
+source artifacts/docker_runtime/docker_env.sh
+```
 
-Once image probes, snapshot/configuration and export checks pass, run the bounded
-`python -m rental.orchestrate` lifecycle. Use WORKLOAD_DOMAIN=detection for the
-lab-free hardware trial. Run the longer matrix only after the first path succeeds.
+It tries each GPU mode (`gpus`, `runtime`, `cdi`) by running `nvidia-smi` inside the
+vLLM image, then checks `--ipc=host` (else `--shm-size 16g`), raised ulimits, that a
+container can **read and write this checkout at the same path** (a Docker daemon that
+sees a different filesystem would make every mount empty — that is a hard stop), and
+that a container's port is reachable on `127.0.0.1` (else host networking). Result:
+`artifacts/docker_runtime/docker_runtime.json` (evidence) and `docker_env.sh`
+(the settings). Exit 0 with `"status": "READY"` means go; anything else, read
+`blockers` in the JSON and stop.
+
+**Every new SSH terminal must `source artifacts/docker_runtime/docker_env.sh` again**
+before running Docker-using commands (variables do not carry across terminals).
+
+3. Continue with RENTAL_START_HERE.md from `collect_image_pins.py` onward. The probe,
+   serving, training and preflight all use the sourced settings automatically, and the
+   settings in force are recorded in `preflight.json` and `orchestration.json`.
 
 ## B: no Docker daemon, use only an already compatible provider GPU environment
 

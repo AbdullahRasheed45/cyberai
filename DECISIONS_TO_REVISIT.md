@@ -141,3 +141,47 @@ This file tracks choices made because of a **current constraint** that will chan
   release curve, request latencies, reload logit diffs). If `reload_result.json` shows
   `logit_match: exact`, tighten the criterion back to exact-only.
 - **Issue:** #16
+
+### R-008 — Training precision: 4-bit QLoRA default, bf16 only as a measured comparison
+- **Decision (owner, 13 Nov 2026):** the frozen base is loaded in 4-bit NF4 for LoRA
+  training (`precision: qlora_4bit`), quantised on load from the same pinned BF16
+  repo/commit so adapter lineage is unchanged. bf16 runs only as a comparison
+  (`TRAIN_PRECISION=bf16`); FP8 training is not used. Serving stays on the official FP8
+  checkpoint of the same weights.
+- **Why now:** QLoRA needs ~17 GB of weights versus ~61 GB for bf16, leaving more of the
+  128 GB unified memory for context and batch; the owner will switch to bf16 only if it
+  measures clearly faster.
+- **Trigger:** the trial's qlora_4bit and bf16 training cells have both completed.
+- **Action on trigger:** compare `steady_state_tok_s`, `steady_state_seconds_per_step`
+  and `train_peak_mem_GB`; change the default only on clearly better measured
+  throughput with memory headroom, and record the numbers here.
+- **Issue:** #17
+
+## Owner scope decisions
+
+### R-009 — Qwen3-30B-A3B MoE only (dense fallback removed)
+- **Decision (owner, 13 Nov 2026):** Qwen3-30B-A3B-Instruct-2507 is the only model. The
+  Qwen3-14B dense fallback (brief §4.2) was removed from `configs/serving.yaml`, the
+  serving schema, renderer and CLI. "2507" is the July 2025 release, the newest
+  Qwen3-30B-A3B text model on the Hub as of 13 Nov 2026 (checked via the public HF API);
+  it is the model for the 15 January 2027 fine-tune target.
+- **Trigger:** the GB10 trial shows the MoE model cannot be served or trained.
+- **Action on trigger:** report the evidence to the owner; an alternative model is an
+  owner decision, never an automatic fallback.
+- **Issue:** #18
+
+## Trigger group: `revisit-on-dgx` — provider sandbox
+
+### R-010 — Docker flags measured per machine (Enverge sandbox: no `--gpus all`)
+- **Decision (for now):** Enverge's SSH session is an unprivileged container sandbox
+  with Docker-in-Docker; its NVIDIA runtime is in no-cgroups mode, so `--gpus all`
+  fails. Every container the project starts takes its GPU/IPC/ulimit/network flags from
+  `rental/docker_runtime.py` (`DOCKER_*` env), measured by
+  `scripts/rental/docker_runtime_setup.py` and sourced from
+  `artifacts/docker_runtime/docker_env.sh`. Not being root, the page-cache drop is
+  recorded as `not_permitted`.
+- **Why now:** the purchase-gate trial runs on a rented Enverge GB10.
+- **Trigger:** the physical DGX Spark is owned, or a different provider is used.
+- **Action on trigger:** run the setup script on the new machine (an owned DGX is
+  expected to select the standard defaults); remove Enverge-specific runbook notes.
+- **Issue:** #19
