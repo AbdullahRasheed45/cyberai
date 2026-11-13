@@ -113,6 +113,7 @@ from libs.schemas.benchmark import (  # noqa: E402
     RequestOutcome,
 )
 from libs.schemas.config import (  # noqa: E402
+    CurriculumConfig,
     LabConfig,
     LoopBGateConfig,
     RevisionRule,
@@ -140,6 +141,7 @@ __all__ = [
     "AuthzDecision",
     "ServingConfig",
     "TrainingConfig",
+    "CurriculumConfig",
     "LoopBGateConfig",
     "LabConfig",
     "RevisionRule",

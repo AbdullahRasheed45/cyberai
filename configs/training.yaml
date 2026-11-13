@@ -1,13 +1,29 @@
-# Unsloth FastModel on GB10 — see docs/BRIEF_v1.2 Appendix B2
-model_name: "unsloth/Qwen3-30B-A3B"
-max_seq_length: 2048       # raise for long-context hard tasks
-load_in_4bit: true         # QLoRA
-full_finetuning: false
-lora_rank: 16
+# LoRA fine-tune hyperparameters — the single source read by scripts/smoke_train.py
+# (inside the Unsloth container, via rental/training_config.py) and by rental/plan.py
+# (vLLM --max-lora-rank). Validated in CI against libs.schemas.TrainingConfig.
+#
+# NOT here, deliberately:
+#   - model identity: scripts/rental/FREEZE.yaml (pinned repo + immutable commit)
+#   - per-run matrix knobs: TRAIN_MAX_SEQ_LENGTH / TRAIN_MAX_STEPS / TRAIN_BATCH_SIZE /
+#     TRAIN_GRAD_ACCUM / TRAIN_MEASURE_WARMUP_STEPS env vars (rental/plan.py)
+#
+# Precision is bf16 LoRA on the BF16 base (no 4-bit/8-bit load): the adapter is
+# trained on the same weights the official FP8 serving checkpoint was quantised from.
+lora_rank: 16              # must be a vLLM-supported max-lora-rank value
 lora_alpha: 32
-# Router-layer fine-tuning is DISABLED BY DEFAULT in Unsloth = our frozen-router policy. Do not re-enable.
-gradient_checkpointing: true
-packing: true              # sequence packing — part of the 5-day→20-hour speedup
-learning_rate: 1.0e-5
-warmup_steps: 20
+lora_dropout: 0.0
+# Must equal FREEZE.yaml adapter_targets (rental/plan.py enforces it).
+target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+# Router stays frozen (Unsloth FastModel default = frozen-router policy, brief §7.7);
+# smoke_train.py fails loudly if any router parameter is trainable.
+gradient_checkpointing: unsloth   # unsloth | true | false
+packing: false             # off: keeps per-example token accounting exact for cadence measurement
+# 2e-4 is Unsloth's documented LoRA default. 1e-5 (full-fine-tune territory) moves a
+# zero-initialised LoRA B so little in a 25-step bf16 smoke that the adapter's logit
+# effect can round away, failing the reload "adapter affects inference" check spuriously.
+learning_rate: 2.0e-4
+lr_scheduler_type: linear
+warmup_steps: 3
 max_grad_norm: 1.0
+weight_decay: 0.0
+seed: 3407

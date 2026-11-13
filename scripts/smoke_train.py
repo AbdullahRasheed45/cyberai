@@ -14,6 +14,18 @@ GENERATE smoke (NO network serving — separate check). Round-8 fixes:
 from __future__ import annotations
 
 
+def probe_input_ids(tokenizer, messages):
+    """Chat-template a probe to an input_ids tensor. transformers v5 returns a
+    BatchEncoding (dict) from apply_chat_template(..., return_tensors="pt") where
+    v4 returned the tensor; accept both rather than passing a dict to model()."""
+    encoded = tokenizer.apply_chat_template(
+        messages, add_generation_prompt=True, return_tensors="pt"
+    )
+    if hasattr(encoded, "keys") and "input_ids" in encoded:
+        encoded = encoded["input_ids"]
+    return encoded
+
+
 def verify_router_frozen(named_parameters):
     """Check routing modules without confusing expert gate_proj projections."""
     routers = []
@@ -38,6 +50,7 @@ def main():
 
     import torch
 
+    from rental import training_config
     from rental.plan import FreezeInvalid, TrainingBenchmarkConfig
 
     def fail(m):
@@ -48,6 +61,14 @@ def main():
         BENCH = TrainingBenchmarkConfig.from_env(os.environ)
     except FreezeInvalid as exc:
         fail(str(exc))
+    hp_path = os.environ.get("TRAINING_CONFIG", training_config.DEFAULT_PATH)
+    try:
+        HP = training_config.load(hp_path)
+    except training_config.TrainingConfigError as exc:
+        fail(str(exc))
+    import hashlib
+
+    hp_sha256 = hashlib.sha256(Path(hp_path).read_bytes()).hexdigest()
     if not torch.cuda.is_available():
         fail("CPU-only torch wheel — fix the container")
     if not torch.cuda.is_bf16_supported():
@@ -115,10 +136,15 @@ def main():
     if bad:
         fail(f"non-bf16 params outside documented exceptions: {bad[:3]}")
 
-    MOE_TARGETS = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
     model = FastModel.get_peft_model(
-        model, r=16, lora_alpha=32, lora_dropout=0.0, target_modules=MOE_TARGETS
-    )  # router frozen by default
+        model,
+        r=HP.lora_rank,
+        lora_alpha=HP.lora_alpha,
+        lora_dropout=HP.lora_dropout,
+        target_modules=list(HP.target_modules),
+        use_gradient_checkpointing=HP.gradient_checkpointing,
+        random_state=HP.seed,
+    )  # router frozen by default (verified below)
     try:
         router_parameters = verify_router_frozen(model.named_parameters())
     except ValueError as exc:
@@ -136,8 +162,6 @@ def main():
         fail("no trainable LoRA tensors")
 
     tok.padding_side = "left"
-    import hashlib
-
     from datasets import Dataset
 
     MODE = os.environ.get("TRAIN_MODE", "pingpong")
@@ -188,12 +212,18 @@ def main():
         max_steps=BENCH.max_steps,
         per_device_train_batch_size=BENCH.batch_size,
         gradient_accumulation_steps=BENCH.grad_accum,
-        learning_rate=1e-5,
-        warmup_steps=2,
+        learning_rate=HP.learning_rate,
+        lr_scheduler_type=HP.lr_scheduler_type,
+        warmup_steps=HP.warmup_steps,
+        max_grad_norm=HP.max_grad_norm,
+        weight_decay=HP.weight_decay,
+        seed=HP.seed,
+        packing=HP.packing,
         logging_steps=1,
         bf16=True,
         dataset_text_field="text",
         output_dir=OUT,
+        save_strategy="no",  # the adapter is saved explicitly below; no stray checkpoints
         report_to="none",
     )
     seq_key = "max_length" if "max_length" in cfg_ok else "max_seq_length"
@@ -318,9 +348,7 @@ def main():
     if any(not torch.isfinite(post[n]).all() for n in post):
         fail("non-finite adapter tensor")
 
-    probe = tok.apply_chat_template(
-        [{"role": "user", "content": "ping 3"}], add_generation_prompt=True, return_tensors="pt"
-    ).to("cuda")
+    probe = probe_input_ids(tok, [{"role": "user", "content": "ping 3"}]).to("cuda")
     model.eval()
     with torch.no_grad():
         ref_logits = model(probe).logits[0, -1].float().cpu()
@@ -363,6 +391,8 @@ def main():
         "completed_steps": steps,
         "train_runtime_s": train_secs,
         "training_config": BENCH.__dict__,
+        "hyperparameters": HP.as_dict(),
+        "hyperparameters_file_sha256": hp_sha256,
         "load_runtime_s": load_runtime_s,
         "processed_nonpadding_tokens": measurements.processed_tokens,
         "processed_supervised_tokens": measurements.supervised_tokens,
