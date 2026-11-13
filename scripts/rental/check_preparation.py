@@ -16,15 +16,17 @@ from rental.freeze import validate_freeze
 def main():
     freeze = Path(os.environ.get("FREEZE", "scripts/rental/FREEZE.yaml"))
     blockers = validate_freeze(yaml.safe_load(freeze.read_text(encoding="utf-8")))
-    for command in ("docker", "ssh"):
-        if not shutil.which(command):
-            blockers.append(f"{command} unavailable on this host")
     required = ["MODEL_PATH", "EVIDENCE_EXPORT_DIR", "RENTAL_STOP_UTC"]
+    commands = ["docker"]
     domain = os.environ.get("WORKLOAD_DOMAIN", "web")
     if domain == "web":
         required.append("LAB_SSH_HOST")
+        commands.append("ssh")  # only the live web lab is reached over SSH
     elif domain != "detection":
         blockers.append("WORKLOAD_DOMAIN must be web or detection")
+    for command in commands:
+        if not shutil.which(command):
+            blockers.append(f"{command} unavailable on this host")
     for key in required:
         if not os.environ.get(key):
             blockers.append(f"configure {key}")

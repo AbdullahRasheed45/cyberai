@@ -15,7 +15,23 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import training_config
 from .freeze import validate_freeze, validate_lineage
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+SERVING_CONFIG = "configs/serving.yaml"
+
+
+def load_serving_config(path: str | os.PathLike | None = None):
+    """configs/serving.yaml, validated — the single source of vLLM engine flags."""
+    from libs.common.config import load_yaml_config
+    from libs.schemas.config import ServingConfig
+
+    return load_yaml_config(path or REPO_ROOT / SERVING_CONFIG, ServingConfig)
+
+
+def _default_training_hparams():
+    return training_config.load(REPO_ROOT / training_config.DEFAULT_PATH)
 
 
 @dataclass(frozen=True)
@@ -71,6 +87,8 @@ class ResolvedConfig:
     max_model_len: int = 32768
     port: int = 8000
     training: TrainingBenchmarkConfig = field(default_factory=TrainingBenchmarkConfig)
+    serving: object = field(default_factory=load_serving_config)
+    hparams: object = field(default_factory=_default_training_hparams)
 
     @property
     def url(self) -> str:
@@ -142,6 +160,28 @@ def resolve(freeze: dict, env: dict | None = None) -> ResolvedConfig:
     domain = env.get("WORKLOAD_DOMAIN", "web")
     if domain not in ("web", "detection"):
         raise FreezeInvalid("WORKLOAD_DOMAIN must be web or detection")
+    try:
+        serving = load_serving_config(env.get("SERVING_CONFIG") or None)
+    except Exception as exc:
+        raise FreezeInvalid(f"serving config invalid: {exc}") from None
+    try:
+        hparams = training_config.load(
+            env.get("TRAINING_CONFIG") or REPO_ROOT / training_config.DEFAULT_PATH
+        )
+    except training_config.TrainingConfigError as exc:
+        raise FreezeInvalid(f"training config invalid: {exc}") from None
+    if list(hparams.target_modules) != list(freeze.get("adapter_targets") or []):
+        raise FreezeInvalid(
+            f"training target_modules {list(hparams.target_modules)} != freeze adapter_targets "
+            f"{freeze.get('adapter_targets')}"
+        )
+    raw_len = env.get("MAX_MODEL_LEN", str(serving.max_model_len))
+    try:
+        max_model_len = int(raw_len)
+    except ValueError:
+        raise FreezeInvalid(f"MAX_MODEL_LEN must be an integer, got {raw_len!r}") from None
+    if max_model_len <= 0:
+        raise FreezeInvalid("MAX_MODEL_LEN must be positive")
     derived_adapter = os.path.join(
         repo, "runs", run_id, "adapter"
     )  # run-isolated (overrides the check below)
@@ -162,8 +202,11 @@ def resolve(freeze: dict, env: dict | None = None) -> ResolvedConfig:
         workload_domain=domain,
         train_mode=train_mode,
         pilot_rel=pilot_rel,
-        max_model_len=int(env.get("MAX_MODEL_LEN", "32768")),
+        max_model_len=max_model_len,
+        port=serving.port,
         training=TrainingBenchmarkConfig.from_env(env),
+        serving=serving,
+        hparams=hparams,
     )
 
 
@@ -182,53 +225,88 @@ def _common(name, rc):
     ]
 
 
-def base_serve_argv(rc):
-    return _common("cyberai_serve_base", rc) + [
-        "-v",
-        f"{rc.host_model_path}:/model:ro",
-        rc.vllm_image,
-        "vllm",
-        "serve",
-        "/model",
-        "--served-model-name",
-        rc.base_served_id,
-        "--gpu-memory-utilization",
-        "0.85",
-        "--max-model-len",
-        str(rc.max_model_len),
-        "--enable-prefix-caching",
-        "--enable-chunked-prefill",
+def _serve_env_args(rc):
+    from libs.common.gb10_serving import engine_env
+
+    return [tok for k, v in engine_env(rc.serving).items() for tok in ("-e", f"{k}={v}")]
+
+
+def _serve_tail(rc):
+    # Inside the container vLLM listens on all interfaces so the port mapping works;
+    # host exposure is restricted to loopback by `-p 127.0.0.1:...` above.
+    from libs.common.gb10_serving import engine_flags
+
+    return [
+        "--host",
+        "0.0.0.0",
+        "--port",
+        str(rc.port),
+        *engine_flags(rc.serving, max_model_len=rc.max_model_len),
     ]
+
+
+def base_serve_argv(rc):
+    return (
+        _common("cyberai_serve_base", rc)
+        + _serve_env_args(rc)
+        + [
+            "-v",
+            f"{rc.host_model_path}:/model:ro",
+            rc.vllm_image,
+            "vllm",
+            "serve",
+            "/model",
+            "--served-model-name",
+            rc.base_served_id,
+            *_serve_tail(rc),
+        ]
+    )
 
 
 def lora_serve_argv(rc):
-    return _common("cyberai_serve_lora", rc) + [
-        "-v",
-        f"{rc.host_model_path}:/model:ro",
-        "-v",
-        f"{rc.host_adapter_path}:/adapter:ro",
-        rc.vllm_image,
-        "vllm",
-        "serve",
-        "/model",
-        "--served-model-name",
-        rc.base_served_id,
-        "--enable-lora",
-        "--lora-modules",
-        f"{rc.adapter_served_id}=/adapter",
-        "--max-model-len",
-        str(rc.max_model_len),
-        "--enable-prefix-caching",
-        "--enable-chunked-prefill",
-    ]
+    # This launch IS the hardware correctness check for LoRA on the FP8 MoE model
+    # (configs/serving.yaml require_lora_fp8_verified stays false until it passes),
+    # so it deliberately bypasses render_serve_command's refusal and records evidence.
+    return (
+        _common("cyberai_serve_lora", rc)
+        + _serve_env_args(rc)
+        + [
+            "-v",
+            f"{rc.host_model_path}:/model:ro",
+            "-v",
+            f"{rc.host_adapter_path}:/adapter:ro",
+            rc.vllm_image,
+            "vllm",
+            "serve",
+            "/model",
+            "--served-model-name",
+            rc.base_served_id,
+            "--enable-lora",
+            "--max-loras",
+            "1",
+            "--max-lora-rank",
+            str(rc.hparams.lora_rank),
+            "--lora-modules",
+            f"{rc.adapter_served_id}=/adapter",
+            *_serve_tail(rc),
+        ]
+    )
+
+
+def train_dirs(rc) -> list[str]:
+    """Host directories the training container writes; created writable beforehand
+    because the image's user id may differ from the host checkout owner."""
+    return [rc.host_output_dir, os.path.join(rc.host_repo, "runs", "hf_cache")]
 
 
 def train_argv(rc):
     # The heavy GB10 training stack (Unsloth/TRL/PEFT/bitsandbytes) comes from the
-    # pinned image; `pip install -e .` only adds THIS project so detection_verifier/
-    # rental import inside the container. Output lands at the single adapter path.
+    # pinned image. THIS project is imported from the mounted checkout via
+    # PYTHONPATH — no `pip install` (that needs a build backend from the network and
+    # write access to the image's site-packages). `bash -lc` keeps the image's login
+    # environment, matching rental.probe. Output lands at the single adapter path.
     inner = (
-        "pip install -e . --no-deps -q && "
+        "export PYTHONPATH=/work${PYTHONPATH:+:$PYTHONPATH} && "
         "python scripts/smoke_train.py && python scripts/smoke_reload.py"
     )
     return [
@@ -238,6 +316,10 @@ def train_argv(rc):
         "--gpus",
         "all",
         "--ipc=host",
+        "--ulimit",
+        "memlock=-1",
+        "--ulimit",
+        "stack=67108864",
         "-v",
         f"{rc.host_repo}:/work",
         "-v",
@@ -258,6 +340,10 @@ def train_argv(rc):
         f"TRAIN_MODE={rc.train_mode}",
         "-e",
         f"PILOT_DATA={rc.pilot_rel}",
+        "-e",
+        "PYTHONUNBUFFERED=1",  # live console log for the tracker during training
+        "-e",
+        "HF_TOKEN",  # pass-through by NAME: the value never enters argv/evidence
         *[
             token
             for key, value in rc.training.docker_env().items()
@@ -320,5 +406,7 @@ def export_cmd(rc):
 def resolved_dict(rc):
     d = {k: (list(v) if isinstance(v, tuple) else v) for k, v in rc.__dict__.items()}
     d["training"] = rc.training.__dict__
+    d["serving"] = rc.serving.model_dump()
+    d["hparams"] = rc.hparams.as_dict()
     d.update(url=rc.url, artifact_dir=rc.artifact_dir)
     return d

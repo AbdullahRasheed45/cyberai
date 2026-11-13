@@ -69,13 +69,73 @@ def test_lora_serve_argv_has_adapter_mount_and_lora_flags():
     assert a[a.index("--lora-modules") + 1] == "smoke=/adapter"
 
 
-def test_train_argv_installs_project_inside_container():
+def test_train_argv_imports_project_from_mounted_checkout():
     a = plan.train_argv(_rc())
     assert "-v" in a and "/repo:/work" in a and a[a.index("-w") + 1] == "/work"
-    assert any("pip install -e ." in tok for tok in a)  # project available INSIDE docker
+    # project imported via PYTHONPATH from the mount — no pip/build backend/network
+    assert not any("pip install" in tok for tok in a)
+    assert "export PYTHONPATH=/work" in a[-1]
+    assert "smoke_train.py" in a[-1] and "smoke_reload.py" in a[-1]
+    assert "PYTHONUNBUFFERED=1" in a  # live training console for the tracker
+    assert a[a.index("HF_TOKEN") - 1] == "-e"  # passed by NAME; value never in argv
+    assert not any(tok.startswith("HF_TOKEN=") for tok in a)
     assert "uns@sha256:" + "b" * 64 in a
     assert a[a.index("-e") + 1] == "SMOKE_MODEL=unsloth/Qwen3-30B-A3B"
     assert "SMOKE_REVISION=" + "c" * 40 in a
+
+
+def test_serve_argv_takes_engine_flags_from_serving_yaml():
+    rc = _rc()
+    cfg = rc.serving
+    for a in (plan.base_serve_argv(rc), plan.lora_serve_argv(rc)):
+        assert a[a.index("--gpu-memory-utilization") + 1] == str(cfg.gpu_memory_utilization)
+        assert a[a.index("--max-num-seqs") + 1] == str(cfg.max_num_seqs)
+        assert a[a.index("--port") + 1] == str(rc.port)  # container port == mapped port
+        assert f"127.0.0.1:{rc.port}:{rc.port}" in a  # host exposure stays loopback-only
+        if cfg.attention_backend.lower() != "auto":
+            assert f"VLLM_ATTENTION_BACKEND={cfg.attention_backend}" in a
+            # env flags precede the image; vllm args follow it
+            assert a.index(f"VLLM_ATTENTION_BACKEND={cfg.attention_backend}") < a.index(
+                rc.vllm_image
+            )
+
+
+def test_lora_serve_rank_matches_training_config():
+    rc = _rc()
+    a = plan.lora_serve_argv(rc)
+    assert a[a.index("--max-lora-rank") + 1] == str(rc.hparams.lora_rank)
+    assert a[a.index("--max-loras") + 1] == "1"
+
+
+def test_attention_backend_auto_sets_no_env():
+    from libs.common.gb10_serving import engine_env
+
+    cfg = _rc().serving.model_copy(update={"attention_backend": "auto"})
+    assert engine_env(cfg) == {}
+
+
+def test_resolve_rejects_training_targets_differing_from_freeze():
+    f = _good_freeze()
+    f["adapter_targets"] = ["q_proj", "v_proj"]
+    with pytest.raises(FreezeInvalid, match="target_modules"):
+        plan.resolve(f, env={"MODEL_PATH": "/m", "RUN_ID": "r1"})
+
+
+def test_resolve_takes_max_model_len_from_serving_yaml_unless_overridden():
+    rc = plan.resolve(_good_freeze(), env={"MODEL_PATH": "/m", "RUN_ID": "r1"})
+    assert rc.max_model_len == rc.serving.max_model_len
+    rc = plan.resolve(
+        _good_freeze(), env={"MODEL_PATH": "/m", "RUN_ID": "r1", "MAX_MODEL_LEN": "8192"}
+    )
+    assert rc.max_model_len == 8192
+    with pytest.raises(FreezeInvalid):
+        plan.resolve(_good_freeze(), env={"MODEL_PATH": "/m", "MAX_MODEL_LEN": "big"})
+
+
+def test_resolved_dict_is_json_serialisable_with_configs():
+    d = plan.resolved_dict(_rc())
+    json.dumps(d)
+    assert d["serving"]["max_num_seqs"] and d["hparams"]["lora_rank"]
 
 
 def test_host_envs_derived_from_one_config():
@@ -352,3 +412,83 @@ def test_module_entry_point_structured_abort_clean_env():
     )
     assert "NameError" not in r.stderr and "Traceback" not in r.stderr, r.stderr
     assert json.loads(r.stdout)["orchestrate"] == "ABORTED"
+
+
+# --- GB10 hardening: readiness, live logs, unified memory, phases -------------
+
+
+def _ex_full(m, **kw):
+    ex = _ex(m)
+    for key, value in kw.items():
+        setattr(ex, key, value)
+    return ex
+
+
+def test_container_exit_during_wait_fails_fast_with_log_pointer():
+    m = _Mock("not_ready")
+    checks = []
+    m.exited = lambda name: checks.append(name) or True
+    with pytest.raises(orch.LifecycleError, match="exited before becoming ready"):
+        orch.run(_rc(), _ex_full(m, readiness_tries=1000))
+    assert checks == ["cyberai_serve_base"]  # failed on the first poll, not after 1000
+
+
+def test_serving_consoles_followed_into_run_artifacts():
+    m = _Mock("ok")
+    followed = []
+    orch.run(_rc(), _ex_full(m, follow_logs=lambda n, p: followed.append((n, p))))
+    assert followed == [
+        ("cyberai_serve_base", "artifacts/run_testrun/cyberai_serve_base.console.log"),
+        ("cyberai_serve_lora", "artifacts/run_testrun/cyberai_serve_lora.console.log"),
+    ]
+
+
+def test_live_phase_file_tracks_progress():
+    m = _Mock("ok")
+    orch.run(_rc(), _ex(m))
+    phase = json.loads(m.evidence["artifacts/run_testrun/phase.json"])
+    assert phase["phase"] == "export" and phase["phases"][0] == "preflight"
+    assert phase["run_id"] == "testrun" and phase["elapsed_s"] >= 0
+
+
+def test_train_dirs_prepared_and_cache_drops_recorded():
+    m = _Mock("ok")
+    prepared = []
+    ev = orch.run(
+        _rc(),
+        _ex_full(
+            m, prepare_dirs=lambda paths: prepared.extend(paths), drop_caches=lambda: "dropped"
+        ),
+    )
+    assert prepared == plan.train_dirs(_rc())
+    assert ev["cache_drops"] == {
+        "before_serve": "dropped",
+        "before_train": "dropped",
+        "before_lora_serve": "dropped",
+    }
+
+
+def test_release_waits_for_unified_memory_to_settle():
+    m = _Mock("ok")
+    readings = iter([2.0] + [50.0, 2.5] * 2)  # baseline, then slow release per container
+    ev = orch.run(
+        _rc(),
+        _ex_full(m, mem_gb=lambda: next(readings), release_wait_s=10, mem_source=lambda: "host"),
+    )
+    assert [r["release"] for r in ev["releases"]] == ["confirmed", "confirmed"]
+    assert all(r["settle_wait_s"] == 5 and r["telemetry"] == "host" for r in ev["releases"])
+
+
+def test_release_still_fails_loudly_if_memory_never_returns():
+    m = _Mock("ok")
+    readings = iter([2.0] + [50.0] * 20)
+    with pytest.raises(orch.LifecycleError, match="memory not released"):
+        orch.run(_rc(), _ex_full(m, mem_gb=lambda: next(readings), release_wait_s=10))
+
+
+def test_host_meminfo_fallback_for_unified_memory():
+    from rental.telemetry import host_used_memory_gb
+
+    text = "MemTotal:       125829120 kB\nMemFree: 1 kB\nMemAvailable:    94371840 kB\n"
+    assert host_used_memory_gb(text) == pytest.approx(30.0)
+    assert host_used_memory_gb("MemTotal: 5 kB\n") is None

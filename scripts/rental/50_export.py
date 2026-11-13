@@ -32,15 +32,19 @@ def main():
         os.path.join(out_dir, "train_meta.json"),
         os.environ.get("FREEZE", "scripts/rental/FREEZE.yaml"),
     ]
-    trajectories = os.path.join(adir, "web_offensive_trajectories.jsonl")
-    if os.path.isfile(trajectories):
-        evidence.append(trajectories)
-    steps = os.path.join(out_dir, "step_measurements.jsonl")
-    if os.path.isfile(steps):
-        evidence.append(steps)
-    training_logs = os.path.join(out_dir, "training_logs.jsonl")
-    if os.path.isfile(training_logs):
-        evidence.append(training_logs)
+    # Optional evidence: included when the phase that produces it ran. Serving
+    # console logs are the only record of vLLM startup/kernel errors after `rm -f`.
+    optional = [
+        os.path.join(adir, "web_offensive_trajectories.jsonl"),
+        os.path.join(adir, "phase.json"),
+        os.path.join(adir, "SNAPSHOT_MANIFEST.json"),
+        os.path.join(adir, "cyberai_serve_base.console.log"),
+        os.path.join(adir, "cyberai_serve_lora.console.log"),
+        os.path.join(out_dir, "step_measurements.jsonl"),
+        os.path.join(out_dir, "training_logs.jsonl"),
+        os.path.join(out_dir, "reload_result.json"),
+    ]
+    evidence += [path for path in optional if os.path.isfile(path)]
     inference_artifacts = [
         os.path.join(out_dir, "adapter", "adapter_config.json"),
         os.path.join(out_dir, "adapter", "adapter_model.safetensors"),
