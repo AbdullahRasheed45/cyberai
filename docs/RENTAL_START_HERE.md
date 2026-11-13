@@ -1,0 +1,318 @@
+# Start here: 24-hour DGX Spark hardware trial
+
+New to this? Read `OWNER_GUIDE_GB10_TRIAL.md` first: the same steps explained in plain
+English, with what each result means. This file is the exact command reference.
+
+Use `MEASUREMENTS_AND_TRACKING.md` to capture command logs, host/device telemetry,
+tokens, training steps, failures and download timing on either execution path.
+
+Enverge users: first read `ENVERGE_SETUP.md` and run its provider inventory.
+Custom GPU Docker support is unconfirmed; do not assume the SSH instance is a host.
+
+13 November 2026. Primary purpose: measure GB10 latency, tokens/sec,
+context/concurrency limits, memory pressure and real training/save/reload speed
+before purchasing hardware. A separate cyber lab is optional for this trial.
+No command below provisions paid compute or authorises a purchase.
+
+## Pre-booking checklist and Windows Docker evidence
+
+Docker Desktop on the development laptop was verified running on 13 November:
+Linux amd64 engine 29.9.2, approximately 3.7 GiB memory. A disposable CPU-only
+container ran all five live HTTP reference profiles successfully, with network
+disabled, source mounted read-only, root filesystem read-only and temporary
+files limited to a 64 MiB tmpfs. Python image identity:
+`python@sha256:07d4824036af339fa1b6ef769cc99d9c10a141769538b52b3b597c84f7a7b535`.
+This establishes Linux CPU/container portability, not GB10 or CUDA compatibility.
+The temporary container/database were removed. Only the pulled Python image remains.
+
+The per-user Docker CLI/helper directory is
+`C:\Users\abdul\AppData\Local\Programs\DockerDesktop\resources\bin`.
+If the current terminal cannot find Docker or its credential helper, prepend this
+directory to that terminal's PATH or open a terminal with the installed PATH.
+
+Before booking, complete these operational choices:
+- Confirm provider offers actual GB10/ARM64 with GPU-enabled Docker and sufficient
+  storage; obtain access instructions, billing rules and teardown procedure.
+- Choose the durable evidence/adapter destination and rehearse a small copy and
+  independent readback. Confirm repository access from the intended engine.
+- Select and hash the actual training files, including the long-context profile;
+  the tiny detection pilot alone cannot forecast representative training cadence.
+- State acceptable round duration and context/concurrency needs before judging
+  results. The non-thinking integration pin does not settle the reasoning model
+  comparison. No unverified replacement model identity is supplied here.
+- Check download/cache availability with the provider. Do not spend most of the
+  rental fetching images/weights if staging is available before billing.
+
+First-hour rental gates (require the actual machine): image dependency probes,
+CUDA/driver/bf16 compatibility, local model identity and available memory/storage.
+Unresolved FILL dependency pins remain deliberately fail-closed until those probes.
+The optional Windows-lab VM/SSH setup does not block the hardware-only trial.
+Direct DRAM bandwidth profiling remains outside the implemented token-rate harness;
+record bandwidth-sensitive latency/throughput curves without labelling them a
+direct GB/s measurement.
+
+## 1. Which repository to clone
+
+Use the existing repository and feature branch; `main` is intentionally minimal.
+On the rented Linux ARM64 Spark, after connecting with the provider's SSH command:
+
+```bash
+git clone --branch stage-1/live-web-rental-readiness --single-branch https://github.com/AbdullahRasheed45/cyberai.git
+cd cyberai
+git status --short --branch
+git rev-parse HEAD
+```
+
+Private repository access requires your existing GitHub credentials or an approved
+deploy key. Do not place a token in a clone URL or terminal logs. Record the HEAD
+SHA with your run evidence. Do not merge PRs to prepare the trial.
+
+## 2. Confirm the rental host
+
+```bash
+uname -m
+nvidia-smi
+docker version
+docker info
+df -h
+free -h
+```
+
+Require actual GB10/DGX Spark and `aarch64`, a working GPU-enabled Docker runtime,
+and sufficient disk for serving FP8 weights, training weights, both images, shared
+cache, adapters and evidence. Do not substitute another GPU as Spark evidence.
+Check the provider's actual storage allowance before downloading. Setup/download
+time may already be billable; arrange caches in advance if the provider permits.
+
+Use the documented NGC/SM121 container path. Do not install host Torch to fix a
+container failure. The Windows laptop's Docker installation is unrelated to
+whether Docker/GPU passthrough works on this Linux rental.
+
+## 3. Install the lightweight project environment
+
+Use the provider's installed `uv`, or install it using its official instructions:
+https://docs.astral.sh/uv/getting-started/installation/
+
+```bash
+uv sync --frozen
+uv pip install huggingface-hub
+mkdir -p artifacts data runs/hf_cache
+uv run pytest -q
+uv run ruff check .
+```
+
+These are CPU checks; they do not confirm CUDA/model compatibility.
+
+## 4. Select the hardware-only workload and storage
+
+```bash
+export WORKLOAD_DOMAIN=detection
+export TRAIN_MODE=pilot
+export PILOT_DATA=data/platform_pilot.jsonl
+uv run python scripts/rental/make_pilot.py --domain detection --out "$PILOT_DATA"
+export MODEL_PATH=/data/models/qwen3-fp8
+export EVIDENCE_EXPORT_DIR=/mnt/durable/cyberai-trial
+export RENTAL_STOP_UTC='REPLACE_WITH_ACTUAL_FUTURE_ISO_UTC_DEADLINE'
+```
+
+Replace paths with actual locations and the deadline with e.g. a valid
+`YYYY-MM-DDTHH:MM:SSZ` timestamp. Create/verify those directories. The export
+destination must be durable storage outside the rental instance or an explicitly
+mounted durable volume; a folder name alone cannot establish durability.
+
+`detection` executes the existing model-to-rule integration smoke without SSH or
+a target lab. The small detection pilot validates training plumbing and provides
+a baseline timing result, not representative long-context cyber training or a
+learning-gain claim. For representative data, transfer your prepared, verified
+development trajectory JSONL and set PILOT_DATA to its repo-relative path.
+Run a second profile with that data; report actual length/truncation statistics.
+Never substitute repeated short rows as diverse trajectories.
+
+## 5. Pull the exact image digests and resolve runtime versions
+
+```bash
+uv run python -c 'import subprocess,yaml; c=yaml.safe_load(open("scripts/rental/FREEZE.yaml")); [subprocess.run(["docker","pull",c[k]],check=True) for k in ("vllm_image","unsloth_image")]'
+# Measure which Docker GPU/IPC/ulimit/network flags work here and save them.
+# REQUIRED on Enverge (sandboxed Docker-in-Docker: `--gpus all` fails there).
+python3 scripts/rental/docker_runtime_setup.py
+source artifacts/docker_runtime/docker_env.sh   # repeat in EVERY new terminal
+timeout 1800 uv run python scripts/rental/collect_image_pins.py
+export FREEZE=artifacts/image_pin_collection/FREEZE.image-versions.yaml
+```
+
+`docker_runtime_setup.py` must end with `"status": "READY"`. If it says `BLOCKED`,
+read `blockers` in `artifacts/docker_runtime/docker_runtime.json` and stop: no GPU
+mode, or containers unable to read/write this checkout, cannot be worked around.
+
+The probe runs each image through `bash -lc`, the same login shell the trainer uses,
+and records the interpreter path (`"python"` in `probes.json`) so the probed and
+training environments are demonstrably the same.
+
+Read both image logs and `probes.json`. Confirm CUDA, bf16 and required imports.
+Review the generated freeze; never replace unresolved FILL values with guessed
+versions. Image/driver incompatibility is a stop condition with saved evidence.
+The template remains unchanged. All GPU compatibility is unexecuted as of this guide.
+
+## 6. Download Qwen on the Spark
+
+```bash
+uv run python scripts/rental/materialise_checkpoint.py
+```
+
+This obtains the pinned serving snapshot into MODEL_PATH and writes a hash
+manifest. Training obtains its pinned trainable base inside the Unsloth container.
+Both training and fresh reload share `runs/hf_cache`, mounted at `/hf-cache` with
+HF_HOME set. This avoids repeated downloads across matrix cells. The cache is
+on the rental filesystem; it is not automatically durable beyond termination.
+
+Model (owner decision): **Qwen3-30B-A3B MoE only** — Instruct-2507 (released July
+2025; the newest Qwen3-30B-A3B text release, and the model for the 15 January 2027
+fine-tune target). Serving uses the official FP8 checkpoint; training uses the
+lineage-matched Unsloth copy of the same BF16 weights. Instruct-2507 is non-thinking;
+the reasoning comparison against Thinking-2507 remains a separate decision.
+
+```bash
+uv run python scripts/rental/check_preparation.py
+```
+
+For WORKLOAD_DOMAIN=detection this does not require LAB_SSH_HOST. A successful
+configuration report still requires actual GPU execution, not just file checks.
+
+## 7. Execute the first bounded lifecycle
+
+Terminal 1 — the live dashboard (leave it running for the whole trial):
+
+```bash
+uv run python -m rental.live_status --root artifacts --runs runs --port 8765
+```
+
+Terminal 2 — the lifecycle, wrapped by the tracker so its console, host memory,
+GPU readings and exit status are published live:
+
+```bash
+export RUN_ID=hardware_s2048_b1
+export TRAIN_MAX_SEQ_LENGTH=2048 TRAIN_MAX_STEPS=30 TRAIN_BATCH_SIZE=1
+export TRAIN_GRAD_ACCUM=1 TRAIN_MEASURE_WARMUP_STEPS=5
+uv run python scripts/rental/track_command.py --out artifacts/tracked_$RUN_ID.json \
+  --timeout 21600 -- uv run python -m rental.orchestrate
+```
+
+This executes preflight, base serving/measurement, resource release, training,
+save, fresh-process reload, adapter serving, detection integration smoke and
+hashed evidence export. A failed model smoke is retained as a failure; it is
+distinct from measured hardware speed. Preserve logs from failed phases.
+
+Lifecycle knobs (environment, all recorded in the evidence; defaults shown):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `SERVE_READY_TIMEOUT_S` | 1800 | Wait for vLLM readiness. First FP8 MoE load + compile can take many minutes; a container that dies stops the wait immediately. |
+| `RELEASE_WAIT_S` / `RELEASE_MARGIN_GB` | 60 / 2.0 | Memory must return within margin of the pre-serve baseline after each stop (unified memory settles over seconds). |
+| `MEASURE_CONTEXTS` / `MEASURE_CONCURRENCIES` | `8000,16000` / `1,8,32` | Inference grid. Failed/slow cells are recorded (`passed: false`), they do not abort training. |
+| `MEASURE_REQUEST_TIMEOUT_S` | 600 | Per-request timeout in the inference grid. |
+| `MAX_MODEL_LEN` | `configs/serving.yaml` | Context override for this run only. |
+| `HF_TOKEN` | unset | Optional; forwarded to the training container by name (never in argv/evidence). |
+
+vLLM engine flags (memory utilisation, max sequences, attention backend) come from
+`configs/serving.yaml`; LoRA hyperparameters from `configs/training.yaml`. To try
+vLLM's own attention-backend choice, set `attention_backend: auto` and use a new RUN_ID.
+
+### What to watch (and what the assistant monitors)
+
+| Where | Shows |
+|---|---|
+| Dashboard "Lifecycle phase" | `artifacts/run_<RUN_ID>/phase.json`: current phase, elapsed time, completed phases |
+| Dashboard "Serving container logs" | live vLLM console (`cyberai_serve_base.console.log` / `_lora`): load progress, kernel/backend errors, OOM |
+| Dashboard "Commands and hardware" | tracker state, host RAM/swap (the real memory signal on GB10 — `nvidia-smi` memory reads `[N/A]` on unified memory), GPU util/temp/power/clocks, console tail |
+| Dashboard "Training progress" | per-step seconds, actual tokens, tokens/s, loss |
+| Dashboard "Recent inference requests" | per-request tokens, latency, TTFT, errors during measurement |
+
+From a shell on the Spark the same data is available read-only:
+`curl -s http://127.0.0.1:8765/api/state`, `cat artifacts/run_$RUN_ID/phase.json`,
+`tail -f artifacts/run_$RUN_ID/cyberai_serve_base.console.log`,
+`tail -f artifacts/tracked_$RUN_ID.log`, `tail runs/$RUN_ID/step_measurements.jsonl`.
+
+Results to read after each run: `artifacts/run_$RUN_ID/inference_measurements.json`,
+`runs/$RUN_ID/train_meta.json`, `runs/$RUN_ID/reload_result.json` (`logit_match` is
+`exact` or labelled `kernel_tolerant`), `artifacts/run_$RUN_ID/workload_result.json`,
+`receipt.json` and `export_result.json`.
+
+Do not restart with the same RUN_ID. A timeout can leave containers running;
+inspect `docker ps` before continuing. Never overlap serving and training merely
+to save time on a shared-memory device.
+
+## 8. Training matrix after the first path works
+
+Training precision (owner decision): **4-bit QLoRA is the default** (`precision:
+qlora_4bit` in `configs/training.yaml`). bf16 is run only as a comparison, with
+`TRAIN_PRECISION=bf16`, and adopted only if its measured tokens/sec is clearly better.
+FP8 training is not used. Compare `steady_state_tok_s`, `steady_state_seconds_per_step`
+and `train_peak_mem_GB` in each run's `train_meta.json`; change only the precision.
+
+First comparison cell (same everything as the first lifecycle run except precision):
+
+```bash
+export UNSLOTH_IMAGE="$(uv run python -c 'import os,yaml; print(yaml.safe_load(open(os.environ["FREEZE"]))["unsloth_image"])')"
+export SMOKE_MODEL="$(uv run python -c 'import os,yaml; print(yaml.safe_load(open(os.environ["FREEZE"]))["trainable_base_repo"])')"
+export SMOKE_REVISION="$(uv run python -c 'import os,yaml; print(yaml.safe_load(open(os.environ["FREEZE"]))["trainable_base_commit"])')"
+export RUN_ID=training_bf16_s2048_b1 SMOKE_OUT=runs/training_bf16_s2048_b1
+export TRAIN_PRECISION=bf16 TRAIN_MAX_SEQ_LENGTH=2048 TRAIN_BATCH_SIZE=1
+uv run python scripts/rental/track_command.py --out artifacts/tracked_$RUN_ID.json   --timeout 10800 -- bash scripts/run_smoke.sh
+unset TRAIN_PRECISION   # back to the qlora_4bit default for the remaining cells
+```
+
+Then the sequence-length cells (default precision):
+
+To avoid repeating serving for every cell, load the reviewed identities:
+
+```bash
+export UNSLOTH_IMAGE="$(uv run python -c 'import os,yaml; print(yaml.safe_load(open(os.environ["FREEZE"]))["unsloth_image"])')"
+export SMOKE_MODEL="$(uv run python -c 'import os,yaml; print(yaml.safe_load(open(os.environ["FREEZE"]))["trainable_base_repo"])')"
+export SMOKE_REVISION="$(uv run python -c 'import os,yaml; print(yaml.safe_load(open(os.environ["FREEZE"]))["trainable_base_commit"])')"
+export RUN_ID=training_s4096_b1
+export SMOKE_OUT=runs/training_s4096_b1
+export TRAIN_MAX_SEQ_LENGTH=4096 TRAIN_BATCH_SIZE=1
+uv run python scripts/rental/track_command.py --out artifacts/tracked_$RUN_ID.json   --timeout 10800 -- bash scripts/run_smoke.sh
+```
+
+Keep TRAIN_MODE, PILOT_DATA, steps/accumulation/warm-up set from above. Then use a
+new RUN_ID/SMOKE_OUT for 8192/b1. Try 4096/b2 only with measured memory headroom.
+Use actual long development trajectories for those cells; configured max length
+does not create long input. Copy these additional run directories before teardown.
+
+## 9. Measurements and 24-hour priorities
+
+| Hours | Priority |
+|---|---|
+| 0–2 | Host, images, storage and download/probe setup; stop early on incompatibility |
+| 2–5 | Base latency, actual tokens/sec, context/concurrency and sampled memory |
+| 5–11 | Training matrix, actual tokens, synchronized step times, save/fresh reload |
+| 11–15 | Real adapter deployment and repeatable output checks |
+| 15–19 | Representative data/model behavior comparison; optional lab only if already rehearsed |
+| 19–21 | One diagnosed rerun; preserve results of failures |
+| 21–24 | Export, independent readback, cleanup and provider termination |
+
+Run inference measurements on the Spark itself so internet latency is excluded.
+Separate single-request latency from aggregate throughput. Context/concurrency
+curves reveal bandwidth-sensitive workload behavior; tokens/sec is not a direct
+measurement of DRAM bandwidth. Direct bandwidth testing/profiling is a separate
+measurement and is not implemented by the current token-rate harness.
+
+Include loading/compilation overhead and actual processed training tokens;
+record unavailable memory telemetry honestly. Decide acceptable training-round
+duration against your intended data/context mix, not a guessed speed target.
+
+## 10. Export and stop billing
+
+Check export_result.json and receipt.json in the per-run artifact directory.
+The bundle copy verifies destination bytes; also verify access from outside the
+rental. Copy extra matrix outputs, console logs and selected freeze/probe logs.
+Save the trained adapter and dataset hash. Keep SSH keys/secrets out of bundles.
+
+Inspect `docker ps`; stop only this trial's containers. Terminate the instance
+through the provider and confirm billing stopped. `timeout` and RENTAL_STOP_UTC
+do not terminate the provider instance. Preserve the final three hours for this.
+
+For the optional isolated Windows-laptop lab, follow
+`RENTAL_RUNBOOK_2026-11-13.md`; set WORKLOAD_DOMAIN=web and LAB_SSH_HOST only after
+the VM/SSH workflow is rehearsed. Lab readiness does not block the hardware-only scope.

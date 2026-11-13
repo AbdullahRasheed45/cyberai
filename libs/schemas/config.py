@@ -11,15 +11,17 @@ No service may re-define these shapes locally — import from here.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ServingConfig(BaseModel):
     """`configs/serving.yaml` — the shared vLLM endpoint.
 
-    `model` is the primary candidate (Qwen3-30B-A3B FP8); `dense_fallback_model`
-    is Qwen3-14B dense, used while the MoE serving/training path is being
-    debugged (brief §4.2). Multi-LoRA personas are listed in `lora_adapters`
+    `model` is the Qwen3-30B-A3B MoE FP8 serving checkpoint — the only model
+    (owner decision 13 Nov 2026; the dense Qwen3-14B fallback was removed, see
+    DECISIONS_TO_REVISIT.md R-009). Multi-LoRA personas are listed in `lora_adapters`
     and must each be a generation that has passed the promotion gate before
     being added here — this file is not where untested adapters get tried.
 
@@ -38,8 +40,6 @@ class ServingConfig(BaseModel):
     # serving config). Re-pin deliberately, never drop to None.
     model_revision: str
     served_model_name: str = "qwen3"
-    dense_fallback_model: str
-    dense_fallback_revision: str
     dtype: str = "auto"
     gpu_memory_utilization: float = Field(gt=0, le=1)
     max_model_len: int = Field(gt=0)
@@ -80,21 +80,72 @@ class ServingConfig(BaseModel):
 
 
 class TrainingConfig(BaseModel):
-    """`configs/training.yaml` — the Unsloth + TRL fine-tune path."""
+    """`configs/training.yaml` — LoRA hyperparameters for the Unsloth + TRL path.
+
+    The trainer runs inside the Unsloth image and reads this file through the
+    container-safe mirror `rental.training_config` (no pydantic there); a test
+    keeps the two field sets identical. Model identity lives in the freeze,
+    per-run matrix knobs in TRAIN_* env vars — never here.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
-    model_name: str
-    max_seq_length: int = Field(gt=0)
-    load_in_4bit: bool = True
-    full_finetuning: bool = False
-    lora_rank: int = Field(gt=0)
+    # Frozen-base precision while training: 4-bit QLoRA by default, bf16 only as a
+    # measured comparison (TRAIN_PRECISION). FP8 training is not offered.
+    precision: Literal["qlora_4bit", "bf16"]
+    lora_rank: Literal[1, 8, 16, 32, 64, 128, 256, 320, 512]
     lora_alpha: int = Field(gt=0)
-    gradient_checkpointing: bool = True
-    packing: bool = True
+    lora_dropout: float = Field(ge=0, lt=1)
+    target_modules: list[str] = Field(min_length=1)
+    gradient_checkpointing: Literal["unsloth"] | bool
+    packing: bool
     learning_rate: float = Field(gt=0)
+    lr_scheduler_type: str
     warmup_steps: int = Field(ge=0)
     max_grad_norm: float = Field(gt=0)
+    weight_decay: float = Field(ge=0)
+    seed: int
+
+
+class CurriculumDomain(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["implemented_offline_reference", "planned"]
+    levels: list[str] = Field(min_length=5, max_length=5)
+    resource_profile: str
+
+
+class CurriculumScheduling(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    policy: str
+    note: str
+
+
+class CurriculumConfig(BaseModel):
+    """`configs/six_domain_curriculum.yaml` — product inventory, not lab claims.
+
+    All six domains must be present (PRODUCT_ALIGNMENT doc); each has exactly
+    five easy-to-hard levels. `status: planned` never implies an environment
+    exists.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    version: int = Field(ge=1)
+    domains: dict[
+        Literal["web", "linux", "windows", "active_directory", "cloud", "mobile"],
+        CurriculumDomain,
+    ]
+    scheduling: CurriculumScheduling
+
+    @model_validator(mode="after")
+    def _all_six_domains(self) -> CurriculumConfig:
+        expected = {"web", "linux", "windows", "active_directory", "cloud", "mobile"}
+        missing = expected - set(self.domains)
+        if missing:
+            raise ValueError(f"curriculum is missing domains: {sorted(missing)}")
+        return self
 
 
 class RevisionRule(BaseModel):

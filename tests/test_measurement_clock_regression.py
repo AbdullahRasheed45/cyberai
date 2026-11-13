@@ -79,3 +79,55 @@ def test_main_writes_failure_artifact_and_stops_sampler(monkeypatch, tmp_path):
     assert artifact["passed"] is False
     assert "matrix exploded" in artifact["error"]
     assert captured["state"]["run"] is False
+
+
+def test_matrix_failures_are_data_not_a_lifecycle_abort(monkeypatch, tmp_path):
+    module = measure_module()
+    monkeypatch.setenv("VLLM_URL", "http://unused")
+    monkeypatch.setenv("ARTIFACT_DIR", str(tmp_path))
+    monkeypatch.setenv("MEASURE_CONTEXTS", "100")
+    monkeypatch.setenv("MEASURE_CONCURRENCIES", "2")
+    monkeypatch.setattr(module, "_sampler", lambda state: None)
+    monkeypatch.setattr(module, "post_stream", lambda *a, **k: {"ok": True})
+    seen = {}
+
+    def matrix(url, model, contexts, concurrencies):
+        seen["grid"] = (contexts, concurrencies)
+        return {"matrix": {"c": {"n_failed": 1}}, "context_errors": {}}
+
+    monkeypatch.setattr(module, "run_matrix", matrix)
+    assert module.main() == 0  # server works; a slow/failed cell must not stop training
+    artifact = json.loads((tmp_path / "inference_measurements.json").read_text(encoding="utf-8"))
+    assert artifact["passed"] is False and artifact["server_functional"] is True
+    assert seen["grid"] == ((100,), (2,))
+    assert artifact["settings"]["contexts"] == [100]
+
+
+def test_unusable_server_still_stops_lifecycle(monkeypatch, tmp_path):
+    module = measure_module()
+    monkeypatch.setenv("VLLM_URL", "http://unused")
+    monkeypatch.setenv("ARTIFACT_DIR", str(tmp_path))
+    monkeypatch.setattr(module, "_sampler", lambda state: None)
+
+    def down(*a, **k):
+        raise RuntimeError("connection refused")
+
+    monkeypatch.setattr(module, "post_stream", down)
+    monkeypatch.setattr(module, "run_matrix", lambda *a, **k: {"matrix": {}, "context_errors": {}})
+    assert module.main() == 1
+
+
+def test_one_failing_context_does_not_erase_the_others(monkeypatch):
+    module = measure_module()
+
+    def grow(url, model, ctx):
+        if ctx == 20:
+            raise RuntimeError("context too long")
+        return "prompt", ctx
+
+    monkeypatch.setattr(module, "grow_to_target", grow)
+    monkeypatch.setattr(module, "prefill_estimate", lambda *a: {})
+    monkeypatch.setattr(module, "_post", lambda *a, **k: {"completion_tokens": 1})
+    out = module.run_matrix("u", "m", contexts=(10, 20), concurrencies=(1,))
+    assert "ctx10_conc1_cold" in out["matrix"]
+    assert "context too long" in out["context_errors"]["20"]

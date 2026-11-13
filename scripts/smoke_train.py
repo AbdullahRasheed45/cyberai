@@ -14,6 +14,45 @@ GENERATE smoke (NO network serving — separate check). Round-8 fixes:
 from __future__ import annotations
 
 
+def base_load_kwargs(from_pretrained, model, commit, max_seq_length, precision, torch):
+    """FastModel.from_pretrained kwargs for the frozen base, shared by train and reload.
+
+    qlora_4bit quantises the pinned BF16 repo/commit to 4-bit NF4 on load; bf16 loads
+    it as is. `use_exact_model_name` (when this Unsloth supports it) stops Unsloth
+    substituting its own pre-quantised repository, which would break lineage.
+    """
+    import inspect
+
+    kwargs = dict(
+        model_name=model,
+        revision=commit,
+        max_seq_length=max_seq_length,
+        dtype=torch.bfloat16,
+        load_in_4bit=precision == "qlora_4bit",
+        load_in_8bit=False,
+        full_finetuning=False,
+    )
+    try:
+        params = inspect.signature(from_pretrained).parameters
+    except (TypeError, ValueError):
+        params = {}
+    if "use_exact_model_name" in params:
+        kwargs["use_exact_model_name"] = True
+    return kwargs
+
+
+def probe_input_ids(tokenizer, messages):
+    """Chat-template a probe to an input_ids tensor. transformers v5 returns a
+    BatchEncoding (dict) from apply_chat_template(..., return_tensors="pt") where
+    v4 returned the tensor; accept both rather than passing a dict to model()."""
+    encoded = tokenizer.apply_chat_template(
+        messages, add_generation_prompt=True, return_tensors="pt"
+    )
+    if hasattr(encoded, "keys") and "input_ids" in encoded:
+        encoded = encoded["input_ids"]
+    return encoded
+
+
 def verify_router_frozen(named_parameters):
     """Check routing modules without confusing expert gate_proj projections."""
     routers = []
@@ -38,6 +77,7 @@ def main():
 
     import torch
 
+    from rental import training_config
     from rental.plan import FreezeInvalid, TrainingBenchmarkConfig
 
     def fail(m):
@@ -48,6 +88,15 @@ def main():
         BENCH = TrainingBenchmarkConfig.from_env(os.environ)
     except FreezeInvalid as exc:
         fail(str(exc))
+    hp_path = os.environ.get("TRAINING_CONFIG", training_config.DEFAULT_PATH)
+    try:
+        HP = training_config.load(hp_path)
+        PRECISION = training_config.effective_precision(HP)
+    except training_config.TrainingConfigError as exc:
+        fail(str(exc))
+    import hashlib
+
+    hp_sha256 = hashlib.sha256(Path(hp_path).read_bytes()).hexdigest()
     if not torch.cuda.is_available():
         fail("CPU-only torch wheel — fix the container")
     if not torch.cuda.is_bf16_supported():
@@ -85,20 +134,21 @@ def main():
     import unsloth
     from unsloth import FastModel
 
-    load_started = time.monotonic()
-    model, tok = FastModel.from_pretrained(
-        model_name=MODEL,
-        revision=COMMIT,
-        max_seq_length=BENCH.max_seq_length,
-        dtype=torch.bfloat16,
-        load_in_4bit=False,
-        load_in_8bit=False,
-        full_finetuning=False,
+    load_kwargs = base_load_kwargs(
+        FastModel.from_pretrained, MODEL, COMMIT, BENCH.max_seq_length, PRECISION, torch
     )
+    load_started = time.monotonic()
+    model, tok = FastModel.from_pretrained(**load_kwargs)
     torch.cuda.synchronize()
     load_runtime_s = time.monotonic() - load_started
+    # Lineage guard BEFORE spending training time: Unsloth must not have swapped in
+    # a different (e.g. pre-quantised "-bnb-4bit") repository for the pinned one.
+    loaded_name = getattr(getattr(model, "config", None), "_name_or_path", MODEL)
+    if loaded_name != MODEL:
+        fail(f"loaded {loaded_name!r} instead of the pinned {MODEL!r}; lineage would break")
 
-    # assert bf16 (#2): inspect all param dtypes; fp32 only for norm/router/gate/bias
+    # dtype policy: bf16 compute weights; 4-bit packed (uint8) linears only in qlora_4bit;
+    # fp32 only for norm/router/gate/bias; never fp16.
     dtypes = {}
     for n, p in model.named_parameters():
         dtypes[str(p.dtype)] = dtypes.get(str(p.dtype), 0) + 1
@@ -106,19 +156,27 @@ def main():
             fail(f"unexpected fp16 param {n}")
     if "torch.bfloat16" not in dtypes:
         fail(f"no bf16 params; dtypes={dtypes}")
+    allowed = {torch.bfloat16} | ({torch.uint8} if PRECISION == "qlora_4bit" else set())
     bad = [
         n
         for n, p in model.named_parameters()
-        if p.dtype != torch.bfloat16
+        if p.dtype not in allowed
         and not any(k in n.lower() for k in ("norm", "router", "gate", "bias"))
     ]
     if bad:
-        fail(f"non-bf16 params outside documented exceptions: {bad[:3]}")
+        fail(f"params outside the {PRECISION} dtype policy: {bad[:3]}")
+    if PRECISION == "qlora_4bit" and "torch.uint8" not in dtypes:
+        fail(f"qlora_4bit requested but no 4-bit packed weights were loaded; dtypes={dtypes}")
 
-    MOE_TARGETS = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
     model = FastModel.get_peft_model(
-        model, r=16, lora_alpha=32, lora_dropout=0.0, target_modules=MOE_TARGETS
-    )  # router frozen by default
+        model,
+        r=HP.lora_rank,
+        lora_alpha=HP.lora_alpha,
+        lora_dropout=HP.lora_dropout,
+        target_modules=list(HP.target_modules),
+        use_gradient_checkpointing=HP.gradient_checkpointing,
+        random_state=HP.seed,
+    )  # router frozen by default (verified below)
     try:
         router_parameters = verify_router_frozen(model.named_parameters())
     except ValueError as exc:
@@ -136,8 +194,6 @@ def main():
         fail("no trainable LoRA tensors")
 
     tok.padding_side = "left"
-    import hashlib
-
     from datasets import Dataset
 
     MODE = os.environ.get("TRAIN_MODE", "pingpong")
@@ -188,12 +244,18 @@ def main():
         max_steps=BENCH.max_steps,
         per_device_train_batch_size=BENCH.batch_size,
         gradient_accumulation_steps=BENCH.grad_accum,
-        learning_rate=1e-5,
-        warmup_steps=2,
+        learning_rate=HP.learning_rate,
+        lr_scheduler_type=HP.lr_scheduler_type,
+        warmup_steps=HP.warmup_steps,
+        max_grad_norm=HP.max_grad_norm,
+        weight_decay=HP.weight_decay,
+        seed=HP.seed,
+        packing=HP.packing,
         logging_steps=1,
         bf16=True,
         dataset_text_field="text",
         output_dir=OUT,
+        save_strategy="no",  # the adapter is saved explicitly below; no stray checkpoints
         report_to="none",
     )
     seq_key = "max_length" if "max_length" in cfg_ok else "max_seq_length"
@@ -231,10 +293,32 @@ def main():
             self.step_started = time.monotonic()
             self.tokens_before_step = self.processed_tokens
 
+        def on_log(self, args, state, control, logs=None, **kwargs):
+            with Path(OUT, "training_logs.jsonl").open("a", encoding="utf-8") as stream:
+                stream.write(
+                    json.dumps({"step": int(state.global_step), "metrics": logs or {}}) + "\n"
+                )
+
         def on_step_end(self, args, state, control, **kwargs):
             torch.cuda.synchronize()
             self.step_seconds.append(time.monotonic() - self.step_started)
             self.step_tokens.append(self.processed_tokens - self.tokens_before_step)
+            # Preserve completed-step evidence even if a later step/save fails.
+            with Path(OUT, "step_measurements.jsonl").open("a", encoding="utf-8") as stream:
+                stream.write(
+                    json.dumps(
+                        {
+                            "completed_step": len(self.step_seconds),
+                            "seconds": self.step_seconds[-1],
+                            "nonpadding_tokens": self.step_tokens[-1],
+                            "processed_nonpadding_tokens": self.processed_tokens,
+                            "processed_supervised_tokens": self.supervised_tokens,
+                            "cuda_allocated_bytes": torch.cuda.memory_allocated(),
+                            "cuda_reserved_bytes": torch.cuda.memory_reserved(),
+                        }
+                    )
+                    + "\n"
+                )
 
     measurements = StepMeasurements()
 
@@ -296,9 +380,7 @@ def main():
     if any(not torch.isfinite(post[n]).all() for n in post):
         fail("non-finite adapter tensor")
 
-    probe = tok.apply_chat_template(
-        [{"role": "user", "content": "ping 3"}], add_generation_prompt=True, return_tensors="pt"
-    ).to("cuda")
+    probe = probe_input_ids(tok, [{"role": "user", "content": "ping 3"}]).to("cuda")
     model.eval()
     with torch.no_grad():
         ref_logits = model(probe).logits[0, -1].float().cpu()
@@ -341,6 +423,10 @@ def main():
         "completed_steps": steps,
         "train_runtime_s": train_secs,
         "training_config": BENCH.__dict__,
+        "precision": PRECISION,
+        "base_load_kwargs": {k: str(v) for k, v in load_kwargs.items()},
+        "hyperparameters": HP.as_dict(),
+        "hyperparameters_file_sha256": hp_sha256,
         "load_runtime_s": load_runtime_s,
         "processed_nonpadding_tokens": measurements.processed_tokens,
         "processed_supervised_tokens": measurements.supervised_tokens,

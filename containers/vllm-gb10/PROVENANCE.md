@@ -78,7 +78,7 @@ related configuration. `configs/serving.yaml` encodes this as
 serve command unless that flag is explicitly flipped after a real,
 hardware-run correctness check (not just "it didn't crash").
 
-The dense bf16 Qwen3-14B fallback has **no such restriction** — ordinary
+(Historical: the dense Qwen3-14B fallback was removed on 13 Nov 2026 — MoE only, R-009.) The dense bf16 Qwen3-14B fallback has **no such restriction** — ordinary
 multi-LoRA on an unquantized model is a mainstream, well-supported vLLM
 path, and `require_lora_fp8_verified` does not gate it.
 

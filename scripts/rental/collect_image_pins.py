@@ -25,7 +25,7 @@ def main():
         "unsloth_image": ["torch", "transformers", "unsloth", "trl", "peft", "bitsandbytes"],
     }
     for key, components in required.items():
-        result = subprocess.run(probe_argv(cfg[key]), capture_output=True, text=True, timeout=300)
+        result = subprocess.run(probe_argv(cfg[key]), capture_output=True, text=True, timeout=900)
         (out / (key + ".log")).write_text(result.stdout + "\n" + result.stderr)
         parsed = extract_probe(result.stdout)
         if result.returncode or not parsed:

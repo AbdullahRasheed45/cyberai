@@ -21,7 +21,7 @@ CONFIGS_DIR = REPO_ROOT / "configs"
 def test_serving_config_loads():
     cfg = load_yaml_config(CONFIGS_DIR / "serving.yaml", ServingConfig)
     assert cfg.model.startswith("Qwen/")
-    assert cfg.dense_fallback_model.startswith("Qwen/")
+    assert "30B-A3B" in cfg.model  # MoE only
     assert 0 < cfg.gpu_memory_utilization <= 1
     assert cfg.max_model_len > 0
 
@@ -75,3 +75,43 @@ def test_out_of_range_value_fails_loudly(tmp_path):
     bad.write_text(yaml.safe_dump(good), encoding="utf-8")
     with pytest.raises(ConfigError):
         load_yaml_config(bad, ServingConfig)
+
+
+def test_curriculum_config_loads_all_six_domains():
+    from libs.schemas import CurriculumConfig
+
+    cfg = load_yaml_config(CONFIGS_DIR / "six_domain_curriculum.yaml", CurriculumConfig)
+    assert set(cfg.domains) == {"web", "linux", "windows", "active_directory", "cloud", "mobile"}
+    assert all(len(d.levels) == 5 for d in cfg.domains.values())
+
+
+def test_curriculum_config_rejects_missing_domain(tmp_path):
+    from libs.schemas import CurriculumConfig
+
+    raw = yaml.safe_load((CONFIGS_DIR / "six_domain_curriculum.yaml").read_text(encoding="utf-8"))
+    del raw["domains"]["mobile"]
+    bad = tmp_path / "c.yaml"
+    bad.write_text(yaml.safe_dump(raw), encoding="utf-8")
+    with pytest.raises(ConfigError):
+        load_yaml_config(bad, CurriculumConfig)
+
+
+def test_every_config_file_has_a_schema():
+    """No configs/*.yaml may exist without a validating test (EXECUTION_ENVIRONMENTS)."""
+    covered = {
+        "serving.yaml",
+        "training.yaml",
+        "loopB_gate.yaml",
+        "lab.yaml",
+        "six_domain_curriculum.yaml",
+        "benchmark.yaml",
+        "benchmark.harness-test.yaml",
+    }
+    assert {p.name for p in CONFIGS_DIR.glob("*.yaml")} <= covered
+
+
+def test_benchmark_configs_load():
+    from libs.schemas.benchmark import BenchmarkConfig
+
+    for name in ("benchmark.yaml", "benchmark.harness-test.yaml"):
+        load_yaml_config(CONFIGS_DIR / name, BenchmarkConfig)

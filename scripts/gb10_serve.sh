@@ -5,7 +5,7 @@
 # on a non-GB10/non-GPU machine except `render` and `preflight-host` (which
 # will correctly report "not GB10" rather than pretending to work).
 #
-# This script supersedes the single-shot scripts/serve_smoke.sh heredoc in
+# This script supersedes the single-shot serve_smoke.sh heredoc in
 # docs/STAGE_0_AND_1_EXACT.md Part B2 with the configurable version this
 # task asked for; it does not edit that doc (CLAUDE.md: follow the runbook
 # exactly as written). Use whichever you prefer on the actual session — if
@@ -15,8 +15,8 @@
 # Subcommands:
 #   preflight-host        host-level checks (scripts/gb10/preflight.sh)
 #   preflight-container    in-container torch/CUDA/vllm checks (pulls IMAGE)
-#   render [primary|dense_fallback] [--lora]   print the vllm serve command, don't run it
-#   start  [primary|dense_fallback]   start the server (detached)
+#   render [primary] [--lora]   print the vllm serve command, don't run it
+#   start  [primary]            start the Qwen3-30B-A3B MoE server (detached)
 #   stop                   stop and remove the container
 #   status                 is it running? what does docker think?
 #   logs                   follow container logs
@@ -35,6 +35,10 @@ EVIDENCE_DIR="$REPO_ROOT/evidence/gb10"
 pinned_image() {
     local file="${1:-$IMAGE_FILE}"
     grep -v '^#' "$file" | grep -v '^\s*$' | head -1 | xargs
+}
+
+runtime_flags() {
+    (cd "$REPO_ROOT" && python3 -m rental.docker_runtime "$@")
 }
 
 render_args() {
@@ -56,7 +60,9 @@ cmd_preflight_container() {
     local image
     image="$(pinned_image)"
     echo "[gb10_serve] running in-container preflight with image: $image"
-    docker run --rm --gpus all -v "$REPO_ROOT:/work" -w /work "$image" \
+    local gpu_flags
+    read -r -a gpu_flags <<< "$(runtime_flags gpu)"
+    docker run --rm "${gpu_flags[@]}" -v "$REPO_ROOT:/work" -w /work "$image" \
         python3 scripts/gb10/preflight_in_container.py
 }
 
@@ -95,15 +101,26 @@ cmd_start() {
     host="$(render_args --variant "$variant" "${extra_lora_flag[@]}" --format meta | awk -F= '/^HOST=/{print $2}')"
     port="$(render_args --variant "$variant" "${extra_lora_flag[@]}" --format meta | awk -F= '/^PORT=/{print $2}')"
 
+    # GPU/IPC/network flags from rental.docker_runtime (DOCKER_* env, measured by
+    # scripts/rental/docker_runtime_setup.py on sandboxed providers such as Enverge).
+    local bind_host gpu_flags resource_flags net_flags
+    bind_host="$(runtime_flags bind-host)"
+    read -r -a gpu_flags <<< "$(runtime_flags gpu)"
+    read -r -a resource_flags <<< "$(runtime_flags resources)"
+    if [[ "$(runtime_flags network "$port")" == "--network host" ]]; then
+        net_flags=(--network host)
+    else
+        net_flags=(-p "${host}:${port}:${port}")
+    fi
     for i in "${!argv[@]}"; do
-        if [[ "${argv[$i]}" == "--host" ]]; then argv[$((i+1))]="0.0.0.0"; fi
+        if [[ "${argv[$i]}" == "--host" ]]; then argv[$((i+1))]="$bind_host"; fi
     done
     echo "[gb10_serve] starting $CONTAINER_NAME ($variant) on $host:$port with image $image"
     docker run -d --name "$CONTAINER_NAME" \
-        --gpus all --ipc=host --restart no \
-        -p "${host}:${port}:${port}" \
+        "${gpu_flags[@]}" "${resource_flags[@]}" --restart no \
+        "${net_flags[@]}" \
         -v "$HF_CACHE_DIR:/root/.cache/huggingface" \
-        -e HF_TOKEN="${HF_TOKEN:-}" \
+        -e HF_TOKEN \
         "${docker_env_flags[@]}" \
         "$image" \
         "${argv[@]}"

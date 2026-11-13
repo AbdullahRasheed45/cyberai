@@ -101,7 +101,19 @@ class AuthzDecision(BaseModel):
 # Re-exported so every service imports schemas from one place (see
 # docs/ARCHITECTURE.md §2): `from libs.schemas import ServingConfig` etc.,
 # never a locally redefined shape.
+from libs.schemas.benchmark import (  # noqa: E402
+    BenchmarkConfig,
+    BenchmarkPointResult,
+    BenchmarkReport,
+    BenchmarkWorkloadSpec,
+    LengthPair,
+    MemorySnapshot,
+    PercentileStats,
+    RecommendedOperatingConfiguration,
+    RequestOutcome,
+)
 from libs.schemas.config import (  # noqa: E402
+    CurriculumConfig,
     LabConfig,
     LoopBGateConfig,
     RevisionRule,
@@ -129,6 +141,7 @@ __all__ = [
     "AuthzDecision",
     "ServingConfig",
     "TrainingConfig",
+    "CurriculumConfig",
     "LoopBGateConfig",
     "LabConfig",
     "RevisionRule",
@@ -137,4 +150,13 @@ __all__ = [
     "EvidenceRecord",
     "ServingThroughputResult",
     "TrainSmokeMetrics",
+    "BenchmarkConfig",
+    "BenchmarkWorkloadSpec",
+    "LengthPair",
+    "MemorySnapshot",
+    "RequestOutcome",
+    "PercentileStats",
+    "BenchmarkPointResult",
+    "RecommendedOperatingConfiguration",
+    "BenchmarkReport",
 ]

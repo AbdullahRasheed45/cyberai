@@ -17,7 +17,7 @@ serving_base_repo:   Qwen/Qwen3-30B-A3B-Instruct-2507-FP8
 serving_base_commit: "5a5a776300a41aaa681dd7ff0106608ef2bc90db" # verified HF API 2026-11-12
 serving_quantisation: FP8
 serving_quant_provenance: "Official Qwen FP8 quantisation of Qwen/Qwen3-30B-A3B-Instruct-2507 (base_model/quantized-from on the FP8 card); non-thinking Instruct variant (no reasoning parser)."
-trainable_serving_relation_attested: true # pinned 16-shard SHA256 + complete index equality; see artifacts/setup_resolution/lineage_verified.json
+trainable_serving_relation_attested: true # pinned 16-shard SHA256 + complete index equality; see docs/historical_evidence/round17_lineage_verified.json (Hub metadata, not a local hash)
 adapter_targets: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
 # --- containers (pin by @sha256 digest; versions must match the deps below) ---
 vllm_image:    "nvcr.io/nvidia/vllm@sha256:ecd885a6fa671552021eb2bef16773110ebfa4eb5e24e4a2831bf0f4808ddfea" # ARM64 26.10-py3; registry verified, GPU untested
