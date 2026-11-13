@@ -12,7 +12,12 @@ dependencies = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-filterwarnings = ["error"]
+filterwarnings = [
+  "error",
+  # Upstream: peft calls a transformers v5 API deprecated in favour of
+  # is_activation_checkpointing. Narrow ignore; all other warnings stay errors.
+  "ignore:`is_gradient_checkpointing` is deprecated:FutureWarning",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["libs", "rental", "detection_verifier", "lab"]

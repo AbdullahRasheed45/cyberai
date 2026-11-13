@@ -9,7 +9,10 @@ references; v1.3 is a proposal. No GPU result has been produced.
 
 ## Current verdict
 
-Offline validation: full suite 225 passed, 2 optional Torch-dependent skips.
+Offline validation (latest, after the GB10 lifecycle hardening): full suite 301 passed,
+3 optional Torch-dependent skips; those Torch checks (PEFT save/reload/disable/generate
+roundtrip and the reload logit classifier) pass separately with CPU torch 2.15,
+transformers 5.23, peft 0.21 — CPU only, not GB10 evidence. Earlier record: 225 passed, 2 skips.
 After the final process-error handling changes, focused lifecycle/export checks
 passed 30 tests. Lint, format and compilation passed. No tests were disabled.
 Executed local reference evidence:
