@@ -2,6 +2,13 @@
 
 ## Current update — 13 November 2026
 
+Live tracker preparation: `rental.live_status` serves a loopback-only dashboard
+and read-only JSON API. `track_command.py` publishes atomic running snapshots,
+sample history and console logs. Inference preserves per-request usage/failures;
+training persists completed-step token/time/memory records. See
+`MEASUREMENTS_AND_TRACKING.md` for SSH access and one-variable tuning workflow.
+Token rates are measured workload results, not direct DRAM-bandwidth profiling.
+
 Enverge-specific preparation: `ENVERGE_SETUP.md` distinguishes custom GPU Docker
 from an already compatible provider GPU environment. `provider_probe.py` records
 actual capabilities without installing frameworks or downloading weights. The

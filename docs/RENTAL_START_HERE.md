@@ -1,5 +1,8 @@
 # Start here: 24-hour DGX Spark hardware trial
 
+Use `MEASUREMENTS_AND_TRACKING.md` to capture command logs, host/device telemetry,
+tokens, training steps, failures and download timing on either execution path.
+
 Enverge users: first read `ENVERGE_SETUP.md` and run its provider inventory.
 Custom GPU Docker support is unconfirmed; do not assume the SSH instance is a host.
 

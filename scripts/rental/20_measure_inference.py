@@ -35,11 +35,43 @@ def _post(url, model, prompt, max_tokens, stream):
     req = urllib.request.Request(
         url, data=json.dumps(payload).encode(), headers={"Content-Type": "application/json"}
     )
-    with urllib.request.urlopen(req, timeout=300) as r:
-        if stream:
-            events = [(time.monotonic(), line.decode()) for line in r]
-            return parse_stream_events(events)  # validates; raises on error
-        return parse_completion(r.status, r.read().decode())
+    started = time.monotonic()
+    parsed = {}
+    failure = None
+    try:
+        with urllib.request.urlopen(req, timeout=300) as r:
+            if stream:
+                events = [(time.monotonic(), line.decode()) for line in r]
+                parsed = parse_stream_events(events)
+            else:
+                parsed = parse_completion(r.status, r.read().decode())
+        return parsed
+    except Exception as exc:
+        failure = f"{type(exc).__name__}: {exc}"
+        raise
+    finally:
+        directory = os.environ.get("LIVE_METRICS_DIR")
+        if directory:
+            from pathlib import Path
+
+            Path(directory).mkdir(parents=True, exist_ok=True)
+            record = {
+                "model": model,
+                "stream": stream,
+                "ok": failure is None,
+                "error": failure,
+                "runtime_s": time.monotonic() - started,
+                "prompt_tokens": parsed.get("prompt_tokens"),
+                "completion_tokens": parsed.get("completion_tokens"),
+                "decode_tok_s": parsed.get("decode_tok_s"),
+                "ttft_s": (parsed["first_content_t"] - started)
+                if parsed.get("first_content_t") is not None
+                else None,
+                "requested_max_tokens": max_tokens,
+            }
+            (Path(directory) / f"{time.time_ns()}_{uuid.uuid4().hex}.json").write_text(
+                json.dumps(record), encoding="utf-8"
+            )
 
 
 def post_stream(url, model, prompt, max_tokens=128):
@@ -51,6 +83,8 @@ def post_stream(url, model, prompt, max_tokens=128):
         "ttft_s": ttft,
         "decode_tok_s": s["decode_tok_s"],
         "completion_tokens": s["completion_tokens"],
+        "prompt_tokens": s.get("prompt_tokens"),
+        "reasoning_tokens": s.get("reasoning_tokens"),
         "wall_s": time.monotonic() - t0,
     }
 
@@ -182,9 +216,14 @@ def main():
     try:
         url = os.environ["VLLM_URL"]
         model = os.environ.get("SERVED_MODEL", "qwen3")
-        res["single_stream"] = summarise(
-            [post_stream(url, model, f"Explain TCP variant {i}.") for i in range(3)]
-        )
+        records = []
+        res["single_stream_requests"] = records
+        for i in range(3):
+            try:
+                records.append(post_stream(url, model, f"Explain TCP variant {i}."))
+            except Exception as exc:
+                records.append({"ok": False, "error": f"{type(exc).__name__}: {exc}"})
+        res["single_stream"] = summarise(records)
         res.update(run_matrix(url, model))
         res["passed"] = (
             all(condition["n_failed"] == 0 for condition in res["matrix"].values())

@@ -13,6 +13,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -83,10 +84,12 @@ def run(rc: ResolvedConfig, ex: Executor) -> dict:
         "phases": [],
         "commands": {},
         "releases": [],
+        "phase_events": [],
     }
 
     def record(phase):
         evidence["phases"].append(phase)
+        evidence["phase_events"].append({"phase": phase, "monotonic_s": time.monotonic()})
 
     orch_path = f"{rc.artifact_dir}/orchestration.json"
 

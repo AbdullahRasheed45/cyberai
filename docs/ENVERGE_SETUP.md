@@ -1,5 +1,8 @@
 # Enverge: two execution paths and download budget
 
+For measured execution and saved console/telemetry logs on either path, use the
+command wrapper in `MEASUREMENTS_AND_TRACKING.md`.
+
 13 November 2026. Read `RENTAL_START_HERE.md` for the shared workload, export and
 shutdown steps. This provider-specific supplement takes precedence on access.
 

@@ -231,10 +231,32 @@ def main():
             self.step_started = time.monotonic()
             self.tokens_before_step = self.processed_tokens
 
+        def on_log(self, args, state, control, logs=None, **kwargs):
+            with Path(OUT, "training_logs.jsonl").open("a", encoding="utf-8") as stream:
+                stream.write(
+                    json.dumps({"step": int(state.global_step), "metrics": logs or {}}) + "\n"
+                )
+
         def on_step_end(self, args, state, control, **kwargs):
             torch.cuda.synchronize()
             self.step_seconds.append(time.monotonic() - self.step_started)
             self.step_tokens.append(self.processed_tokens - self.tokens_before_step)
+            # Preserve completed-step evidence even if a later step/save fails.
+            with Path(OUT, "step_measurements.jsonl").open("a", encoding="utf-8") as stream:
+                stream.write(
+                    json.dumps(
+                        {
+                            "completed_step": len(self.step_seconds),
+                            "seconds": self.step_seconds[-1],
+                            "nonpadding_tokens": self.step_tokens[-1],
+                            "processed_nonpadding_tokens": self.processed_tokens,
+                            "processed_supervised_tokens": self.supervised_tokens,
+                            "cuda_allocated_bytes": torch.cuda.memory_allocated(),
+                            "cuda_reserved_bytes": torch.cuda.memory_reserved(),
+                        }
+                    )
+                    + "\n"
+                )
 
     measurements = StepMeasurements()
 

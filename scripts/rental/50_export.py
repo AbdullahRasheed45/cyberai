@@ -35,6 +35,12 @@ def main():
     trajectories = os.path.join(adir, "web_offensive_trajectories.jsonl")
     if os.path.isfile(trajectories):
         evidence.append(trajectories)
+    steps = os.path.join(out_dir, "step_measurements.jsonl")
+    if os.path.isfile(steps):
+        evidence.append(steps)
+    training_logs = os.path.join(out_dir, "training_logs.jsonl")
+    if os.path.isfile(training_logs):
+        evidence.append(training_logs)
     inference_artifacts = [
         os.path.join(out_dir, "adapter", "adapter_config.json"),
         os.path.join(out_dir, "adapter", "adapter_model.safetensors"),
