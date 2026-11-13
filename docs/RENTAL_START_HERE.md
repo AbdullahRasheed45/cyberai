@@ -133,6 +133,10 @@ timeout 1800 uv run python scripts/rental/collect_image_pins.py
 export FREEZE=artifacts/image_pin_collection/FREEZE.image-versions.yaml
 ```
 
+The probe runs each image through `bash -lc`, the same login shell the trainer uses,
+and records the interpreter path (`"python"` in `probes.json`) so the probed and
+training environments are demonstrably the same.
+
 Read both image logs and `probes.json`. Confirm CUDA, bf16 and required imports.
 Review the generated freeze; never replace unresolved FILL values with guessed
 versions. Image/driver incompatibility is a stop condition with saved evidence.
@@ -164,18 +168,62 @@ configuration report still requires actual GPU execution, not just file checks.
 
 ## 7. Execute the first bounded lifecycle
 
+Terminal 1 — the live dashboard (leave it running for the whole trial):
+
+```bash
+uv run python -m rental.live_status --root artifacts --runs runs --port 8765
+```
+
+Terminal 2 — the lifecycle, wrapped by the tracker so its console, host memory,
+GPU readings and exit status are published live:
+
 ```bash
 export RUN_ID=hardware_s2048_b1
 export TRAIN_MAX_SEQ_LENGTH=2048 TRAIN_MAX_STEPS=30 TRAIN_BATCH_SIZE=1
 export TRAIN_GRAD_ACCUM=1 TRAIN_MEASURE_WARMUP_STEPS=5
-set -o pipefail
-timeout 6h uv run python -m rental.orchestrate 2>&1 | tee artifacts/hardware_s2048_b1.log
+uv run python scripts/rental/track_command.py --out artifacts/tracked_$RUN_ID.json \
+  --timeout 21600 -- uv run python -m rental.orchestrate
 ```
 
 This executes preflight, base serving/measurement, resource release, training,
 save, fresh-process reload, adapter serving, detection integration smoke and
 hashed evidence export. A failed model smoke is retained as a failure; it is
 distinct from measured hardware speed. Preserve logs from failed phases.
+
+Lifecycle knobs (environment, all recorded in the evidence; defaults shown):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `SERVE_READY_TIMEOUT_S` | 1800 | Wait for vLLM readiness. First FP8 MoE load + compile can take many minutes; a container that dies stops the wait immediately. |
+| `RELEASE_WAIT_S` / `RELEASE_MARGIN_GB` | 60 / 2.0 | Memory must return within margin of the pre-serve baseline after each stop (unified memory settles over seconds). |
+| `MEASURE_CONTEXTS` / `MEASURE_CONCURRENCIES` | `8000,16000` / `1,8,32` | Inference grid. Failed/slow cells are recorded (`passed: false`), they do not abort training. |
+| `MEASURE_REQUEST_TIMEOUT_S` | 600 | Per-request timeout in the inference grid. |
+| `MAX_MODEL_LEN` | `configs/serving.yaml` | Context override for this run only. |
+| `HF_TOKEN` | unset | Optional; forwarded to the training container by name (never in argv/evidence). |
+
+vLLM engine flags (memory utilisation, max sequences, attention backend) come from
+`configs/serving.yaml`; LoRA hyperparameters from `configs/training.yaml`. To try
+vLLM's own attention-backend choice, set `attention_backend: auto` and use a new RUN_ID.
+
+### What to watch (and what the assistant monitors)
+
+| Where | Shows |
+|---|---|
+| Dashboard "Lifecycle phase" | `artifacts/run_<RUN_ID>/phase.json`: current phase, elapsed time, completed phases |
+| Dashboard "Serving container logs" | live vLLM console (`cyberai_serve_base.console.log` / `_lora`): load progress, kernel/backend errors, OOM |
+| Dashboard "Commands and hardware" | tracker state, host RAM/swap (the real memory signal on GB10 — `nvidia-smi` memory reads `[N/A]` on unified memory), GPU util/temp/power/clocks, console tail |
+| Dashboard "Training progress" | per-step seconds, actual tokens, tokens/s, loss |
+| Dashboard "Recent inference requests" | per-request tokens, latency, TTFT, errors during measurement |
+
+From a shell on the Spark the same data is available read-only:
+`curl -s http://127.0.0.1:8765/api/state`, `cat artifacts/run_$RUN_ID/phase.json`,
+`tail -f artifacts/run_$RUN_ID/cyberai_serve_base.console.log`,
+`tail -f artifacts/tracked_$RUN_ID.log`, `tail runs/$RUN_ID/step_measurements.jsonl`.
+
+Results to read after each run: `artifacts/run_$RUN_ID/inference_measurements.json`,
+`runs/$RUN_ID/train_meta.json`, `runs/$RUN_ID/reload_result.json` (`logit_match` is
+`exact` or labelled `kernel_tolerant`), `artifacts/run_$RUN_ID/workload_result.json`,
+`receipt.json` and `export_result.json`.
 
 Do not restart with the same RUN_ID. A timeout can leave containers running;
 inspect `docker ps` before continuing. Never overlap serving and training merely

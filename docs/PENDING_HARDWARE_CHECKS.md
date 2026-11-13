@@ -30,4 +30,8 @@ its `EvidenceRecord.evidence` field is `HARDWARE`.
 | 14 | Recommended operating configuration computed from real data | same command as #12 | `recommended_operating_configuration` is non-null for at least one context bucket; `recommendation_pending_reason` is gone for that bucket |
 | 15 | Prefix-cache hit/miss heuristic checked against real telemetry | compare the TTFT heuristic in #12's report against vLLM's `/metrics` cache-hit gauges, if exposed on the running image | note in `PROVENANCE.md` whether `/metrics` exposes a usable signal on this image, so the heuristic-only caveat can be upgraded or confirmed as the only option |
 
-See `DECISIONS_TO_REVISIT.md` R-005 for the tracked follow-up issue.
+| 16 | Rental lifecycle end to end (the path the trial actually runs) | `RENTAL_START_HERE.md` §7: `track_command.py ... -- uv run python -m rental.orchestrate` | `receipt.json` status `COMPLETED`; releases `confirmed`; `reload_result.json` passed; `workload_result.json` present. Its vLLM launches use the same `configs/serving.yaml` engine flags and attention backend as rows 4–6, so a pass there also exercises #5. |
+| 17 | LoRA on the FP8 MoE primary, via the rental lifecycle | phase `start_lora` → `verify_adapter_identity` → workload | adapter served and producing a parseable response is evidence toward #9; it does NOT by itself flip `require_lora_fp8_verified` — that still needs the correctness review in #9 |
+| 18 | Calibrate lifecycle thresholds | first completed run of #16 | see `DECISIONS_TO_REVISIT.md` R-007 / issue #16 |
+
+See `DECISIONS_TO_REVISIT.md` R-005 (serving choices) and R-007 (lifecycle thresholds) for the tracked follow-up issues.

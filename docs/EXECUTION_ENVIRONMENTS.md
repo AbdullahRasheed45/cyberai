@@ -37,8 +37,9 @@ between them.
   `HostEnvironment.GB10_CLOUD` (or `GB10_OWNED` once purchased) — the only
   results that may be cited as confirming a brief §19 BLOCKER.
 - **Ephemeral discipline:** everything worth keeping is in git or scripted
-  to re-download (`scripts/download_model.sh`); the instance itself is
-  disposable.
+  to re-download (`scripts/rental/materialise_checkpoint.py` for the pinned
+  serving snapshot; the training base downloads into `runs/hf_cache` inside
+  the Unsloth container); the instance itself is disposable.
 
 ## 3. Isolated HP lab laptop (lab machine)
 

@@ -108,7 +108,7 @@ This file tracks choices made because of a **current constraint** that will chan
 3. Put the issue number in the entry.
 4. When the trigger fires, resolve each issue and note the outcome here before closing.
 
-### R-005 — Narrow live web target for the first rental
+### R-006 — Narrow live web target for the first rental
 - **Decision:** Use the resettable standard-library HTTP authorization-boundary
   target and noisy-context development profile to verify rental integration.
 - **Why now:** A bounded complete workflow is required before the first GB10 trial;
@@ -119,3 +119,25 @@ This file tracks choices made because of a **current constraint** that will chan
   fresh restricted acceptance data. Retain this target as a regression control.
   Do not count its background requests as extra independent skill wins.
 - **Issue:** #14 (`revisit-on-dgx`).
+
+## Trigger group: `revisit-on-measurement` — first GB10 lifecycle run
+
+### R-007 — Lifecycle thresholds and reload tolerance set before any GB10 measurement
+- **Decision (for now):** `rental.orchestrate` waits up to `SERVE_READY_TIMEOUT_S=1800`
+  for vLLM, requires memory to return within `RELEASE_MARGIN_GB=2.0` of the pre-serve
+  baseline within `RELEASE_WAIT_S=60` (host `/proc/meminfo` on unified memory, where
+  `nvidia-smi` memory is N/A); the inference grid defaults to contexts 8000,16000 x
+  concurrency 1,8,32 at 600 s per request, with failed cells recorded rather than
+  aborting training; `smoke_reload.py` accepts reloaded logits as `exact`, or as a
+  labelled `kernel_tolerant` match (same top token and closer to the trained model than
+  the base) when bf16 kernel-path differences exceed atol/rtol. The tensor-level
+  saved-vs-reloaded adapter check stays strict. LoRA smoke learning rate is 2e-4
+  (`configs/training.yaml`).
+- **Why now:** none of these could be measured without GB10 access; the previous values
+  (4-minute readiness, 1 GB margin with no settle, abort on any slow request, 1e-3 logit
+  equality across kernel paths) would likely have failed a correct run.
+- **Trigger:** the first completed GB10 lifecycle run.
+- **Action on trigger:** derive each default from the recorded run (observed load time,
+  release curve, request latencies, reload logit diffs). If `reload_result.json` shows
+  `logit_match: exact`, tighten the criterion back to exact-only.
+- **Issue:** #16

@@ -19,7 +19,7 @@ Exported five-example pilot SHA256:
 `332d22fb25bdfe31942fdcedf6c737eb14999ab04c12066fffb09c79175568f2`.
 Runtime fields make regenerated evidence bytes differ; retain each actual hash.
 Raw artifacts remain local/ignored; commands reproduce the workflow. The narrow
-target expansion is tracked in DECISIONS_TO_REVISIT.md R-005 / issue #14.
+target expansion is tracked in DECISIONS_TO_REVISIT.md R-006 / issue #14.
 
 NOT READY to book the representative trial until actual machine access,
 separate-lab rehearsal, export destination and runtime image pins are verified.

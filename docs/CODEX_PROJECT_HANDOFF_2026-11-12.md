@@ -89,7 +89,7 @@ Canonical BF16 Qwen revision used for lineage comparison:
 - Qwen/Qwen3-30B-A3B-Instruct-2507
 - commit 0d7cf23991f47feeb3a57ecb4c9cee8ea4a17bfe
 
-All 16 published weight-shard SHA256 values and complete safetensors indexes matched between the pinned canonical BF16 model and Unsloth mirror. Evidence is artifacts/setup_resolution/lineage_verified.json in the reviewed package. This is Hub metadata verification, not a local full-weight download/hash. The official FP8 model declares canonical Instruct-2507 as its base. The reviewed freeze records lineage attestation true; actual local assets still require snapshot verification.
+All 16 published weight-shard SHA256 values and complete safetensors indexes matched between the pinned canonical BF16 model and Unsloth mirror. Evidence was artifacts/setup_resolution/lineage_verified.json in the reviewed package; it is now committed as docs/historical_evidence/round17_lineage_verified.json. This is Hub metadata verification, not a local full-weight download/hash. The official FP8 model declares canonical Instruct-2507 as its base. The reviewed freeze records lineage attestation true; actual local assets still require snapshot verification.
 
 ARM64 image candidates (registry identities verified; runtime untested):
 - vLLM: nvcr.io/nvidia/vllm@sha256:ecd885a6fa671552021eb2bef16773110ebfa4eb5e24e4a2831bf0f4808ddfea

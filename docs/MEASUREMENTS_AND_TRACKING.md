@@ -8,6 +8,16 @@ API test passed 3 checks. JavaScript syntax, Python lint/format and compilation
 were checked. HTTP/API behavior is exercised; no real GB10 dashboard readings or
 automated browser-rendering claim is made.
 
+## GB10 unified-memory note
+
+On DGX Spark `nvidia-smi` reports GPU `memory.used/total` as `[N/A]`: CPU and GPU
+share one memory pool. The orchestrator's release checks and the inference
+harness's sampled peak therefore fall back to host `/proc/meminfo`
+(MemTotal - MemAvailable) and label the source (`memory_telemetry`,
+`sampled_peak_mem_source`). The tracker's `host_memory_kib` is the authoritative
+live memory reading; GPU utilisation/temperature/power/clocks still come from
+`nvidia-smi`. Training-side CUDA allocator peaks (`train_peak_mem_GB`) remain valid.
+
 ## Live dashboard and assistant access
 
 Run the read-only dashboard from the checkout on the Spark, using the selected
@@ -29,6 +39,8 @@ port forwarding, inspect the same live files over the working SSH shell instead;
 do not expose the dashboard publicly to bypass the relay.
 
 The browser refreshes every two seconds and shows:
+- The orchestrated run's current lifecycle phase (`artifacts/run_<RUN_ID>/phase.json`).
+- Live vLLM container console tails (startup, kernel/backend and OOM errors).
 - Current command state, elapsed time, exit/failure status and sample age.
 - Host available RAM/swap, disk headroom and supported GPU memory/utilization,
   temperature, power and clock readings.
