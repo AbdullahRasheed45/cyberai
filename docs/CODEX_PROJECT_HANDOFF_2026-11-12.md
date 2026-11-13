@@ -1,5 +1,20 @@
 # CyberAI project — context handoff to repository-connected Codex
 
+## Current update — 13 November 2026
+
+The actual v1.2 brief is now present. Use `RENTAL_RUNBOOK_2026-11-13.md`
+for current commands/status and `CURRENT_PRODUCT_SPEC.md` for reconciliation.
+Earlier paragraphs below are preserved historical evidence, not the latest
+readiness verdict. Live HTTP target and separate-process iterative tool loop
+now pass offline assurance. Four controls plus a real-background long-context
+profile are implemented. Export includes the selected freeze and live trajectory;
+a durable-mount copy verifies destination bytes. A physical two-machine SSH
+rehearsal, actual image pins and all GPU execution remain unverified.
+
+The 220-pass full-suite run resolved the prior localhost mock failure by consuming
+request bodies before returning the response. Later additions require the final
+validation record in the PR. Optional Torch skips are not GPU passes.
+
 ## Repository integration update (12 November 2026)
 
 The six supplied archives are now available and Round 18 has been integrated on `stage-1/round18-rental-integration`, retaining the earlier serving fixes. See `ROUND18_INTEGRATION.md` for exact hashes, repaired/excluded evaluation defects and evidence limits, and `PRE_RENTAL_READINESS.md` for current commands and remaining gates. The imported source is no longer missing. The historical v1.2 critique brief remains absent. The original six issues below are preserved as the historical defect record, not a claim that the repaired code is unchanged.

@@ -1,5 +1,9 @@
 # Pre-rental readiness — 12 November 2026
 
+> Historical snapshot. Current status, repaired live workflow/export wiring and
+> exact commands: [13 November runbook](RENTAL_RUNBOOK_2026-11-13.md).
+> v1.2 is now present. Later commands use the real HTTP lab, not the symbolic runner.
+
 **NOT READY for the full offensive/defensive product purchase trial.** The source-archive blocker is resolved: Round 18 is now integrated and repaired on `stage-1/round18-rental-integration`, preserving the earlier serving fixes. See `ROUND18_INTEGRATION.md` for source hashes, defect dispositions and evidence limits. This is a concrete preparation update, not a new architecture.
 
 ## Remaining blockers before booking

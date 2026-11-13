@@ -107,3 +107,15 @@ This file tracks choices made because of a **current constraint** that will chan
 2. `gh issue create --title "Revisit: <title>" --body "See DECISIONS_TO_REVISIT.md R-xxx. Trigger: <condition>." --label "<trigger-label>"`
 3. Put the issue number in the entry.
 4. When the trigger fires, resolve each issue and note the outcome here before closing.
+
+### R-005 — Narrow live web target for the first rental
+- **Decision:** Use the resettable standard-library HTTP authorization-boundary
+  target and noisy-context development profile to verify rental integration.
+- **Why now:** A bounded complete workflow is required before the first GB10 trial;
+  the full offensive platform remains gated on the web learning proof.
+- **Trigger:** separate lab hardware is available and the first GB10 trial completes.
+- **Action:** add independently versioned application families and meaningful
+  multi-step trajectories, measure physical isolation/resources, and establish
+  fresh restricted acceptance data. Retain this target as a regression control.
+  Do not count its background requests as extra independent skill wins.
+- **Issue:** #14 (`revisit-on-dgx`).
