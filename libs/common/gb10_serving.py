@@ -19,7 +19,7 @@ from pydantic import BaseModel, ConfigDict
 
 from libs.schemas import ServingConfig
 
-ModelVariant = Literal["primary", "dense_fallback"]
+ModelVariant = Literal["primary"]  # Qwen3-30B-A3B MoE only (R-009)
 
 
 class UnverifiedLoraCombinationError(ValueError):
@@ -106,12 +106,10 @@ def render_serve_command(
             "hardware-run correctness check — not just 'it did not crash'."
         )
 
-    if variant == "primary":
-        model, revision = cfg.model, cfg.model_revision
-        default_served_name = cfg.served_model_name
-    else:
-        model, revision = cfg.dense_fallback_model, cfg.dense_fallback_revision
-        default_served_name = f"{cfg.served_model_name}-dense"
+    if variant != "primary":
+        raise ValueError(f"unknown model variant {variant!r}; only 'primary' (MoE) is served")
+    model, revision = cfg.model, cfg.model_revision
+    default_served_name = cfg.served_model_name
 
     name = served_model_name or default_served_name
 

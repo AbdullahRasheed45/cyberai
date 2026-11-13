@@ -21,7 +21,7 @@ CONFIGS_DIR = REPO_ROOT / "configs"
 def test_serving_config_loads():
     cfg = load_yaml_config(CONFIGS_DIR / "serving.yaml", ServingConfig)
     assert cfg.model.startswith("Qwen/")
-    assert cfg.dense_fallback_model.startswith("Qwen/")
+    assert "30B-A3B" in cfg.model  # MoE only
     assert 0 < cfg.gpu_memory_utilization <= 1
     assert cfg.max_model_len > 0
 
