@@ -17,6 +17,17 @@ DEFAULT_PATH = "configs/training.yaml"
 
 # vLLM only accepts these --max-lora-rank values.
 VLLM_LORA_RANKS = (1, 8, 16, 32, 64, 128, 256, 320, 512)
+# Frozen-base precision during training. FP8 training is deliberately not offered.
+PRECISIONS = ("qlora_4bit", "bf16")
+
+
+def effective_precision(hp: TrainingHyperparameters, env=None) -> str:
+    """TRAIN_PRECISION (a per-run matrix knob) overrides the file's default."""
+    env = os.environ if env is None else env
+    value = (env.get("TRAIN_PRECISION") or hp.precision).strip()
+    if value not in PRECISIONS:
+        raise TrainingConfigError(f"precision must be one of {PRECISIONS}, got {value!r}")
+    return value
 
 
 class TrainingConfigError(ValueError):
@@ -25,6 +36,7 @@ class TrainingConfigError(ValueError):
 
 @dataclass(frozen=True)
 class TrainingHyperparameters:
+    precision: str
     lora_rank: int
     lora_alpha: int
     lora_dropout: float
@@ -53,6 +65,8 @@ def _check(raw: dict) -> TrainingHyperparameters:
         raise TrainingConfigError(
             f"training config keys: unknown={sorted(unknown)} missing={sorted(missing)}"
         )
+    if raw["precision"] not in PRECISIONS:
+        raise TrainingConfigError(f"precision must be one of {PRECISIONS}")
     if raw["lora_rank"] not in VLLM_LORA_RANKS:
         raise TrainingConfigError(f"lora_rank must be one of {VLLM_LORA_RANKS} (vLLM limit)")
     if not isinstance(raw["lora_alpha"], int) or raw["lora_alpha"] <= 0:
@@ -77,6 +91,7 @@ def _check(raw: dict) -> TrainingHyperparameters:
     if not isinstance(raw["seed"], int):
         raise TrainingConfigError("seed must be an integer")
     return TrainingHyperparameters(
+        precision=raw["precision"],
         lora_rank=int(raw["lora_rank"]),
         lora_alpha=int(raw["lora_alpha"]),
         lora_dropout=float(raw["lora_dropout"]),

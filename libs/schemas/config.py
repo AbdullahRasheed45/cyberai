@@ -19,9 +19,9 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 class ServingConfig(BaseModel):
     """`configs/serving.yaml` — the shared vLLM endpoint.
 
-    `model` is the primary candidate (Qwen3-30B-A3B FP8); `dense_fallback_model`
-    is Qwen3-14B dense, used while the MoE serving/training path is being
-    debugged (brief §4.2). Multi-LoRA personas are listed in `lora_adapters`
+    `model` is the Qwen3-30B-A3B MoE FP8 serving checkpoint — the only model
+    (owner decision 13 Nov 2026; the dense Qwen3-14B fallback was removed, see
+    DECISIONS_TO_REVISIT.md R-009). Multi-LoRA personas are listed in `lora_adapters`
     and must each be a generation that has passed the promotion gate before
     being added here — this file is not where untested adapters get tried.
 
@@ -40,8 +40,6 @@ class ServingConfig(BaseModel):
     # serving config). Re-pin deliberately, never drop to None.
     model_revision: str
     served_model_name: str = "qwen3"
-    dense_fallback_model: str
-    dense_fallback_revision: str
     dtype: str = "auto"
     gpu_memory_utilization: float = Field(gt=0, le=1)
     max_model_len: int = Field(gt=0)
@@ -92,6 +90,9 @@ class TrainingConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    # Frozen-base precision while training: 4-bit QLoRA by default, bf16 only as a
+    # measured comparison (TRAIN_PRECISION). FP8 training is not offered.
+    precision: Literal["qlora_4bit", "bf16"]
     lora_rank: Literal[1, 8, 16, 32, 64, 128, 256, 320, 512]
     lora_alpha: int = Field(gt=0)
     lora_dropout: float = Field(ge=0, lt=1)

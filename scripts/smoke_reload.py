@@ -71,17 +71,23 @@ def main():
     ref = torch.load(os.path.join(OUT, "reference_probe.pt"))
     probe = ref["probe_ids"].to("cuda")
 
+    import importlib.util
+
     from peft import PeftModel
     from unsloth import FastModel
 
+    # Reload the base EXACTLY as trained (same precision + kwargs) so logits compare.
+    spec = importlib.util.spec_from_file_location(
+        "smoke_train", Path(__file__).with_name("smoke_train.py")
+    )
+    smoke_train = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(smoke_train)
+    precision = meta.get("precision", "bf16")  # pre-precision train_meta files were bf16
     sequence_length = meta["training_config"]["max_seq_length"]
     base, tok = FastModel.from_pretrained(
-        model_name=MODEL,
-        revision=COMMIT,
-        max_seq_length=sequence_length,
-        dtype=torch.bfloat16,
-        load_in_4bit=False,
-        full_finetuning=False,
+        **smoke_train.base_load_kwargs(
+            FastModel.from_pretrained, MODEL, COMMIT, sequence_length, precision, torch
+        )
     )
     # identity checks vs training (#5)
     if getattr(tok, "name_or_path", MODEL) != meta["tokenizer_name_or_path"]:

@@ -7,8 +7,14 @@
 #   - per-run matrix knobs: TRAIN_MAX_SEQ_LENGTH / TRAIN_MAX_STEPS / TRAIN_BATCH_SIZE /
 #     TRAIN_GRAD_ACCUM / TRAIN_MEASURE_WARMUP_STEPS env vars (rental/plan.py)
 #
-# Precision is bf16 LoRA on the BF16 base (no 4-bit/8-bit load): the adapter is
-# trained on the same weights the official FP8 serving checkpoint was quantised from.
+# Precision of the FROZEN base weights during training (owner decision 13 Nov 2026):
+#   qlora_4bit  default. Base loaded in 4-bit NF4 (bitsandbytes) from the same pinned
+#               BF16 repo/commit; LoRA adapters train in bf16 on top. ~17 GB of weights.
+#   bf16        comparison run only (TRAIN_PRECISION=bf16): full bf16 base, ~61 GB.
+#               Adopt it only if the trial shows clearly better tokens/sec.
+# Either way the adapter belongs to the same base the FP8 serving checkpoint was
+# quantised from, so it deploys on the FP8 server. FP8 training is not used.
+precision: qlora_4bit
 lora_rank: 16              # must be a vLLM-supported max-lora-rank value
 lora_alpha: 32
 lora_dropout: 0.0

@@ -14,6 +14,33 @@ GENERATE smoke (NO network serving — separate check). Round-8 fixes:
 from __future__ import annotations
 
 
+def base_load_kwargs(from_pretrained, model, commit, max_seq_length, precision, torch):
+    """FastModel.from_pretrained kwargs for the frozen base, shared by train and reload.
+
+    qlora_4bit quantises the pinned BF16 repo/commit to 4-bit NF4 on load; bf16 loads
+    it as is. `use_exact_model_name` (when this Unsloth supports it) stops Unsloth
+    substituting its own pre-quantised repository, which would break lineage.
+    """
+    import inspect
+
+    kwargs = dict(
+        model_name=model,
+        revision=commit,
+        max_seq_length=max_seq_length,
+        dtype=torch.bfloat16,
+        load_in_4bit=precision == "qlora_4bit",
+        load_in_8bit=False,
+        full_finetuning=False,
+    )
+    try:
+        params = inspect.signature(from_pretrained).parameters
+    except (TypeError, ValueError):
+        params = {}
+    if "use_exact_model_name" in params:
+        kwargs["use_exact_model_name"] = True
+    return kwargs
+
+
 def probe_input_ids(tokenizer, messages):
     """Chat-template a probe to an input_ids tensor. transformers v5 returns a
     BatchEncoding (dict) from apply_chat_template(..., return_tensors="pt") where
@@ -64,6 +91,7 @@ def main():
     hp_path = os.environ.get("TRAINING_CONFIG", training_config.DEFAULT_PATH)
     try:
         HP = training_config.load(hp_path)
+        PRECISION = training_config.effective_precision(HP)
     except training_config.TrainingConfigError as exc:
         fail(str(exc))
     import hashlib
@@ -106,20 +134,21 @@ def main():
     import unsloth
     from unsloth import FastModel
 
-    load_started = time.monotonic()
-    model, tok = FastModel.from_pretrained(
-        model_name=MODEL,
-        revision=COMMIT,
-        max_seq_length=BENCH.max_seq_length,
-        dtype=torch.bfloat16,
-        load_in_4bit=False,
-        load_in_8bit=False,
-        full_finetuning=False,
+    load_kwargs = base_load_kwargs(
+        FastModel.from_pretrained, MODEL, COMMIT, BENCH.max_seq_length, PRECISION, torch
     )
+    load_started = time.monotonic()
+    model, tok = FastModel.from_pretrained(**load_kwargs)
     torch.cuda.synchronize()
     load_runtime_s = time.monotonic() - load_started
+    # Lineage guard BEFORE spending training time: Unsloth must not have swapped in
+    # a different (e.g. pre-quantised "-bnb-4bit") repository for the pinned one.
+    loaded_name = getattr(getattr(model, "config", None), "_name_or_path", MODEL)
+    if loaded_name != MODEL:
+        fail(f"loaded {loaded_name!r} instead of the pinned {MODEL!r}; lineage would break")
 
-    # assert bf16 (#2): inspect all param dtypes; fp32 only for norm/router/gate/bias
+    # dtype policy: bf16 compute weights; 4-bit packed (uint8) linears only in qlora_4bit;
+    # fp32 only for norm/router/gate/bias; never fp16.
     dtypes = {}
     for n, p in model.named_parameters():
         dtypes[str(p.dtype)] = dtypes.get(str(p.dtype), 0) + 1
@@ -127,14 +156,17 @@ def main():
             fail(f"unexpected fp16 param {n}")
     if "torch.bfloat16" not in dtypes:
         fail(f"no bf16 params; dtypes={dtypes}")
+    allowed = {torch.bfloat16} | ({torch.uint8} if PRECISION == "qlora_4bit" else set())
     bad = [
         n
         for n, p in model.named_parameters()
-        if p.dtype != torch.bfloat16
+        if p.dtype not in allowed
         and not any(k in n.lower() for k in ("norm", "router", "gate", "bias"))
     ]
     if bad:
-        fail(f"non-bf16 params outside documented exceptions: {bad[:3]}")
+        fail(f"params outside the {PRECISION} dtype policy: {bad[:3]}")
+    if PRECISION == "qlora_4bit" and "torch.uint8" not in dtypes:
+        fail(f"qlora_4bit requested but no 4-bit packed weights were loaded; dtypes={dtypes}")
 
     model = FastModel.get_peft_model(
         model,
@@ -391,6 +423,8 @@ def main():
         "completed_steps": steps,
         "train_runtime_s": train_secs,
         "training_config": BENCH.__dict__,
+        "precision": PRECISION,
+        "base_load_kwargs": {k: str(v) for k, v in load_kwargs.items()},
         "hyperparameters": HP.as_dict(),
         "hyperparameters_file_sha256": hp_sha256,
         "load_runtime_s": load_runtime_s,
