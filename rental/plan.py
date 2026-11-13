@@ -15,7 +15,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import training_config
+from . import docker_runtime, training_config
 from .freeze import validate_freeze, validate_lineage
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -89,6 +89,7 @@ class ResolvedConfig:
     training: TrainingBenchmarkConfig = field(default_factory=TrainingBenchmarkConfig)
     serving: object = field(default_factory=load_serving_config)
     hparams: object = field(default_factory=_default_training_hparams)
+    train_precision: str = "qlora_4bit"
 
     @property
     def url(self) -> str:
@@ -161,6 +162,10 @@ def resolve(freeze: dict, env: dict | None = None) -> ResolvedConfig:
     if domain not in ("web", "detection"):
         raise FreezeInvalid("WORKLOAD_DOMAIN must be web or detection")
     try:
+        docker_runtime.describe(env)
+    except docker_runtime.DockerRuntimeError as exc:
+        raise FreezeInvalid(f"docker runtime settings invalid: {exc}") from None
+    try:
         serving = load_serving_config(env.get("SERVING_CONFIG") or None)
     except Exception as exc:
         raise FreezeInvalid(f"serving config invalid: {exc}") from None
@@ -170,6 +175,10 @@ def resolve(freeze: dict, env: dict | None = None) -> ResolvedConfig:
         )
     except training_config.TrainingConfigError as exc:
         raise FreezeInvalid(f"training config invalid: {exc}") from None
+    try:
+        train_precision = training_config.effective_precision(hparams, env)
+    except training_config.TrainingConfigError as exc:
+        raise FreezeInvalid(str(exc)) from None
     if list(hparams.target_modules) != list(freeze.get("adapter_targets") or []):
         raise FreezeInvalid(
             f"training target_modules {list(hparams.target_modules)} != freeze adapter_targets "
@@ -207,21 +216,22 @@ def resolve(freeze: dict, env: dict | None = None) -> ResolvedConfig:
         training=TrainingBenchmarkConfig.from_env(env),
         serving=serving,
         hparams=hparams,
+        train_precision=train_precision,
     )
 
 
 def _common(name, rc):
+    # GPU / IPC / network flags come from rental.docker_runtime (DOCKER_* env), so
+    # sandboxed providers (e.g. Enverge's no-cgroups NVIDIA runtime) work unchanged.
     return [
         "docker",
         "run",
         "-d",
         "--name",
         name,
-        "--gpus",
-        "all",
-        "--ipc=host",
-        "-p",
-        f"127.0.0.1:{rc.port}:{rc.port}",
+        *docker_runtime.gpu_args(),
+        *docker_runtime.ipc_args(),
+        *docker_runtime.network_args(rc.port),
     ]
 
 
@@ -232,13 +242,13 @@ def _serve_env_args(rc):
 
 
 def _serve_tail(rc):
-    # Inside the container vLLM listens on all interfaces so the port mapping works;
-    # host exposure is restricted to loopback by `-p 127.0.0.1:...` above.
+    # Published port: vLLM listens on all container interfaces and exposure is limited
+    # by `-p 127.0.0.1:...`. Host networking: it binds loopback directly.
     from libs.common.gb10_serving import engine_flags
 
     return [
         "--host",
-        "0.0.0.0",
+        docker_runtime.server_bind_host(),
         "--port",
         str(rc.port),
         *engine_flags(rc.serving, max_model_len=rc.max_model_len),
@@ -313,13 +323,9 @@ def train_argv(rc):
         "docker",
         "run",
         "--rm",
-        "--gpus",
-        "all",
-        "--ipc=host",
-        "--ulimit",
-        "memlock=-1",
-        "--ulimit",
-        "stack=67108864",
+        *docker_runtime.gpu_args(),
+        *docker_runtime.ipc_args(),
+        *docker_runtime.ulimit_args(),
         "-v",
         f"{rc.host_repo}:/work",
         "-v",
@@ -340,6 +346,8 @@ def train_argv(rc):
         f"TRAIN_MODE={rc.train_mode}",
         "-e",
         f"PILOT_DATA={rc.pilot_rel}",
+        "-e",
+        f"TRAIN_PRECISION={rc.train_precision}",  # explicit per run: qlora_4bit | bf16
         "-e",
         "PYTHONUNBUFFERED=1",  # live console log for the tracker during training
         "-e",

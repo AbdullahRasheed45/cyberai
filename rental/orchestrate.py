@@ -18,7 +18,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import plan
+from . import docker_runtime, plan
 from .freeze import validate_lineage
 from .plan import FreezeInvalid, ResolvedConfig
 
@@ -109,6 +109,7 @@ def run(rc: ResolvedConfig, ex: Executor) -> dict:
     base, lora = "cyberai_serve_base", "cyberai_serve_lora"
     evidence = {
         "resolved_config": plan.resolved_dict(rc),
+        "docker_runtime": docker_runtime.describe(),
         "phases": [],
         "commands": {},
         "releases": [],

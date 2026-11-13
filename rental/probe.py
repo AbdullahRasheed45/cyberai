@@ -40,12 +40,13 @@ def probe_argv(image: str) -> list[str]:
     pass training (or vice versa). The source travels as one env value and is
     expanded only inside double quotes: no shell interpolation of its contents.
     """
+    from rental.docker_runtime import gpu_args
+
     return [
         "docker",
         "run",
         "--rm",
-        "--gpus",
-        "all",
+        *gpu_args(),  # DOCKER_GPU_MODE: same GPU access path as serving/training
         "-e",
         f"CYBERAI_PROBE_SRC={PROBE_SRC}",
         image,
