@@ -14,6 +14,7 @@ dependencies = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+filterwarnings = ["error"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["libs"]
@@ -21,3 +22,28 @@ packages = ["libs"]
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.17.4",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+# docs/ holds the authoritative runbooks (CLAUDE.md: "follow it exactly") —
+# their embedded code fences are reference text, not source files, and must
+# never be touched by an autoformatter.
+extend-exclude = ["uv.lock", "docs/"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+# UP042: keep `class X(str, Enum)` — deliberate for pydantic v2 JSON-schema/
+# serialisation behaviour; StrEnum is not a drop-in replacement here.
+ignore = ["UP042"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["libs", "services", "lab"]
+
+[tool.ruff.format]
+quote-style = "double"

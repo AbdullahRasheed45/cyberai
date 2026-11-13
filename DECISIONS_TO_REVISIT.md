@@ -44,6 +44,29 @@ This file tracks choices made because of a **current constraint** that will chan
 
 ---
 
+## Trigger group: `revisit-on-dgx` / lab-available (hardware-dependent foundation work)
+
+### R-004 — Stage 1 foundation (schemas, config, tooling, CI) built with no GB10/lab access
+- **Decision (for now):** The Stage 1 "minimal repository foundation" work
+  (typed config/result schemas, `configs/lab.yaml`, lint/format/CI, docs) was
+  built and validated entirely on the Windows dev machine. No GB10 session
+  was rented and no lab laptop was available during this work, so nothing in
+  it carries `EvidenceKind.HARDWARE` — see `libs/schemas.EvidenceRecord` and
+  `docs/EXECUTION_ENVIRONMENTS.md`. `configs/lab.yaml` and `LabConfig` encode
+  policy only; no WireGuard tunnel, state machine enforcement, or target
+  container has been run against real hardware.
+- **Why now:** rule 8 of the Stage 1 working instructions — do not rent
+  resources or start a paid GB10 session without explicit authorisation —
+  and no lab laptop was set up at the time.
+- **Trigger:** a GB10 session (rented or owned) or the lab laptop becomes
+  available.
+- **Action on trigger:** run `docs/STAGE_0_AND_1_EXACT.md` Part B (serving
+  smoke test, Unsloth smoke test, throughput measurement) and the lab state
+  machine/WireGuard checks on the real hardware; replace every `LOCAL`
+  evidence claim this foundation produced with a `HARDWARE` one before
+  citing it as confirming a brief §19 BLOCKER.
+- **Issue:** #7
+
 ## Trigger group: `revisit-on-measurement` (when Stage 1.5 measures real volume)
 
 ### M-001 — Loop B gate thresholds are pre-registered estimates

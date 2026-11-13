@@ -1,10 +1,17 @@
-.PHONY: install test lint serve-smoke train-smoke bench
+.PHONY: install test lint format check serve-smoke train-smoke bench
 install:
-	uv venv && uv pip install -e .
+	uv sync
 test:
 	uv run pytest -q
 lint:
-	uv run python -m py_compile libs/schemas/__init__.py libs/common/__init__.py
+	uv run ruff check .
+	uv run ruff format --check .
+format:
+	uv run ruff format .
+	uv run ruff check --fix .
+# Everything that can run on a plain dev machine, no GPU/Linux/Docker needed.
+# This is what CI runs; see docs/EXECUTION_ENVIRONMENTS.md for what cannot.
+check: lint test
 serve-smoke:
 	bash scripts/serve_smoke.sh
 train-smoke:
