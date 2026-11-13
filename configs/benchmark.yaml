@@ -1,0 +1,48 @@
+# Serving benchmark harness sweep definition — see docs/BENCHMARK_HARNESS.md.
+# NOT the sealed cybersecurity capability benchmark (benchmarks/sealed/).
+# Validated against libs/schemas.BenchmarkConfig (extra keys fail loudly).
+seed: 20261112
+
+# Discarded before any stats are recorded, but their errors still count
+# toward "is this endpoint even up" diagnostics.
+warmup_requests_per_point: 3
+requests_per_point: 10
+
+# Hard bounds enforced both when the plan is built AND while the harness is
+# actually running (never just a planning-time estimate).
+max_requests_total: 600
+max_runtime_s: 1800
+request_timeout_s: 60
+
+# Representative context workloads (brief/task: 8K/16K/32K), each filtered
+# against the serving config's max_model_len so a bucket that doesn't fit
+# is skipped and reported, not silently clipped.
+context_buckets: [8192, 16384, 32768]
+
+# (input_tokens, output_tokens) points tried within EVERY bucket where
+# input+output <= bucket AND <= serving.max_model_len.
+length_pairs:
+  - { input_tokens: 512, output_tokens: 128 }    # short/short
+  - { input_tokens: 2048, output_tokens: 512 }   # balanced
+  - { input_tokens: 6144, output_tokens: 1024 }  # long input, shorter output
+
+# Batching/concurrency sweep. Compared side by side in the report — never
+# multiplied together (brief §5.2: batching and long-context spend the same
+# KV budget, they are not independent multipliers).
+concurrency_levels: [1, 4, 8, 16]
+
+# Re-issue the SAME prompt this many times (sequentially) to compare
+# cold (first) vs repeat TTFT as a prefix-cache hit/miss heuristic.
+prefix_cache_probe_repeats: 2
+
+# Populated once a generation has a certified adapter (model_registry).
+# Empty here means the adapter-switching exercise is skipped and reported
+# as such, not silently omitted.
+lora_adapters_to_exercise: []
+
+memory_sample_interval_s: 5.0
+
+# Optional. If set, the recommender treats a point exceeding this p99 as
+# disqualified even if its throughput is higher. Unset (null) = rank on
+# throughput alone.
+sla_p99_e2e_latency_s: null
