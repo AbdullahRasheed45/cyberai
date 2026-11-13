@@ -1,5 +1,8 @@
 # Current rental preparation and execution record
 
+For the primary hardware-only trial, begin with `RENTAL_START_HERE.md`.
+The separate lab requirements below apply to the optional live-agent extension.
+
 13 November 2026. This supersedes the execution status and commands in the
 12 November readiness/handoff snapshots. The briefs remain architecture
 references; v1.3 is a proposal. No GPU result has been produced.

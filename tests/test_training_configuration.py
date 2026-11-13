@@ -1,3 +1,4 @@
+import os
 from dataclasses import replace
 
 import pytest
@@ -22,6 +23,8 @@ def test_representative_training_configuration_reaches_docker():
     assert "TRAIN_BATCH_SIZE=2" in argv
     assert "TRAIN_GRAD_ACCUM=4" in argv
     assert "TRAIN_MEASURE_WARMUP_STEPS=5" in argv
+    assert "HF_HOME=/hf-cache" in argv
+    assert os.path.join("/repo", "runs", "hf_cache") + ":/hf-cache" in argv
 
 
 @pytest.mark.parametrize(

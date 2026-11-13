@@ -2,6 +2,11 @@
 
 ## Current update — 13 November 2026
 
+Primary rental scope is hardware validation; follow `RENTAL_START_HERE.md`.
+WORKLOAD_DOMAIN=detection uses the lab-free integration path. Shared training
+cache now persists across trainer/reload containers. The optional web scope
+continues to require the isolated lab and SSH rehearsal.
+
 The actual v1.2 brief is now present. Use `RENTAL_RUNBOOK_2026-11-13.md`
 for current commands/status and `CURRENT_PRODUCT_SPEC.md` for reconciliation.
 Earlier paragraphs below are preserved historical evidence, not the latest

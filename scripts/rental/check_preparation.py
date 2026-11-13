@@ -19,7 +19,13 @@ def main():
     for command in ("docker", "ssh"):
         if not shutil.which(command):
             blockers.append(f"{command} unavailable on this host")
-    for key in ("LAB_SSH_HOST", "MODEL_PATH", "EVIDENCE_EXPORT_DIR", "RENTAL_STOP_UTC"):
+    required = ["MODEL_PATH", "EVIDENCE_EXPORT_DIR", "RENTAL_STOP_UTC"]
+    domain = os.environ.get("WORKLOAD_DOMAIN", "web")
+    if domain == "web":
+        required.append("LAB_SSH_HOST")
+    elif domain != "detection":
+        blockers.append("WORKLOAD_DOMAIN must be web or detection")
+    for key in required:
         if not os.environ.get(key):
             blockers.append(f"configure {key}")
     for key in ("MODEL_PATH", "EVIDENCE_EXPORT_DIR"):
