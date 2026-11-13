@@ -58,7 +58,16 @@ def sample():
             if result.returncode:
                 record["gpu_error"] = result.stderr.strip()
             else:
-                record["gpu_sample"] = {"fields": query.split(","), "csv": result.stdout.strip()}
+                fields = query.split(",")
+                csv = result.stdout.strip()
+                values = [v.strip() for v in csv.splitlines()[0].split(",")] if csv else []
+                # GB10 unified memory reports memory.* as [N/A]; host_memory_kib
+                # above is the authoritative memory reading on that platform.
+                record["gpu_sample"] = {
+                    "fields": fields,
+                    "csv": csv,
+                    "values": dict(zip(fields, values, strict=False)),
+                }
         except (OSError, subprocess.TimeoutExpired) as exc:
             record["gpu_error"] = str(exc)
     else:

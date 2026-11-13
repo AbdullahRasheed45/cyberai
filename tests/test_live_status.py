@@ -90,3 +90,56 @@ def test_dashboard_does_not_invent_missing_gpu_values(tmp_path):
     )
     value = snapshot(tmp_path, tmp_path / "runs")
     assert "GPU_TELEMETRY_UNAVAILABLE" in value["trackers"][0]["signals"]
+
+
+def test_dashboard_shows_lifecycle_phase_and_serving_console(tmp_path):
+    root, runs = tmp_path / "artifacts", tmp_path / "runs"
+    run = root / "run_r1"
+    run.mkdir(parents=True)
+    runs.mkdir()
+    (run / "phase.json").write_text(
+        json.dumps({"run_id": "r1", "phase": "wait_base", "phases": ["preflight", "wait_base"]})
+    )
+    log_bytes = b"x" * 9000 + b"\nCUDA graph capture done\n"  # bytes: no CRLF translation
+    (run / "cyberai_serve_base.console.log").write_bytes(log_bytes)
+    state = snapshot(root, runs)
+    assert state["lifecycle"][0]["phase"] == "wait_base"
+    assert state["lifecycle"][0]["artifact_dir"] == "run_r1"
+    log = state["service_logs"][0]
+    assert log["file"] == "run_r1/cyberai_serve_base.console.log"
+    assert log["tail"].endswith("CUDA graph capture done\n") and len(log["tail"]) == 8192
+
+
+def test_dashboard_tolerates_null_measurements():
+    from rental.live_status import PAGE
+
+    # every numeric render goes through a null-safe formatter; a raw .toFixed on a
+    # possibly-null field would break the whole refresh loop mid-trial
+    assert "s.runtime_s.toFixed" not in PAGE and "s.seconds.toFixed" not in PAGE
+    assert "const fx=" in PAGE
+
+
+def test_check_preparation_detection_scope_needs_no_ssh(tmp_path, monkeypatch):
+    import os
+
+    model, export = tmp_path / "m", tmp_path / "e"
+    model.mkdir()
+    export.mkdir()
+    env = {
+        **os.environ,
+        "WORKLOAD_DOMAIN": "detection",
+        "MODEL_PATH": str(model),
+        "EVIDENCE_EXPORT_DIR": str(export),
+        "RENTAL_STOP_UTC": "2999-01-01T00:00:00Z",
+        "PATH": "",  # neither docker nor ssh resolvable
+    }
+    result = subprocess.run(
+        [sys.executable, "scripts/rental/check_preparation.py"],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    blockers = json.loads(result.stdout)["blockers"]
+    assert "docker unavailable on this host" in blockers
+    assert not any("ssh" in b for b in blockers)
+    assert not any("LAB_SSH_HOST" in b for b in blockers)
