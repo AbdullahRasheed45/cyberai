@@ -80,8 +80,11 @@ cmd_start() {
     # the one place the multi-LoRA/FP8 refusal is enforced. A non-zero exit
     # here (e.g. REFUSED) must stop this script, not fall through to a
     # docker run with half-applied flags.
-    mapfile -t argv < <(render_args --variant "$variant" "${extra_lora_flag[@]}" --format argv)
-    mapfile -t env_lines < <(render_args --variant "$variant" "${extra_lora_flag[@]}" --format env)
+    local rendered_argv rendered_env
+    rendered_argv="$(render_args --variant "$variant" "${extra_lora_flag[@]}" --format argv)"
+    rendered_env="$(render_args --variant "$variant" "${extra_lora_flag[@]}" --format env)"
+    mapfile -t argv <<< "$rendered_argv"
+    mapfile -t env_lines <<< "$rendered_env"
 
     local docker_env_flags=()
     for line in "${env_lines[@]}"; do
@@ -92,9 +95,12 @@ cmd_start() {
     host="$(render_args --variant "$variant" "${extra_lora_flag[@]}" --format meta | awk -F= '/^HOST=/{print $2}')"
     port="$(render_args --variant "$variant" "${extra_lora_flag[@]}" --format meta | awk -F= '/^PORT=/{print $2}')"
 
+    for i in "${!argv[@]}"; do
+        if [[ "${argv[$i]}" == "--host" ]]; then argv[$((i+1))]="0.0.0.0"; fi
+    done
     echo "[gb10_serve] starting $CONTAINER_NAME ($variant) on $host:$port with image $image"
     docker run -d --name "$CONTAINER_NAME" \
-        --gpus all --ipc=host --restart unless-stopped \
+        --gpus all --ipc=host --restart no \
         -p "${host}:${port}:${port}" \
         -v "$HF_CACHE_DIR:/root/.cache/huggingface" \
         -e HF_TOKEN="${HF_TOKEN:-}" \
@@ -127,8 +133,13 @@ cmd_logs() {
 cmd_smoke_test() {
     local host_env="${1:-gb10_cloud}"
     local evidence="${2:-hardware}"
+    local variant="${3:-primary}" meta host port model
+    meta="$(render_args --variant "$variant" --format meta)"
+    host="$(printf '%s\n' "$meta" | awk -F= '/^HOST=/{print $2}')"
+    port="$(printf '%s\n' "$meta" | awk -F= '/^PORT=/{print $2}')"
+    model="$(printf '%s\n' "$meta" | awk -F= '/^SERVED_MODEL_NAME=/{print $2}')"
     uv run --project "$REPO_ROOT" python "$SCRIPT_DIR/gb10/health_check.py" \
-        --host 127.0.0.1 --port 8000 --served-model-name qwen3 \
+        --host "$host" --port "$port" --served-model-name "$model" \
         --host-env "$host_env" --evidence "$evidence"
 }
 

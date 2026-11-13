@@ -31,12 +31,12 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from libs.schemas import EvidenceKind, EvidenceRecord, HostEnvironment, ServingThroughputResult  # noqa: E402
+from libs.schemas import EvidenceKind, EvidenceRecord, HostEnvironment  # noqa: E402
 
 
 def _one_completion(
     client: httpx.Client, url: str, model: str, prompt: str, max_tokens: int
-) -> float:
+) -> dict:
     t0 = time.monotonic()
     r = client.post(
         url,
@@ -45,13 +45,15 @@ def _one_completion(
             "messages": [{"role": "user", "content": prompt}],
             "max_tokens": max_tokens,
         },
-        timeout=120,
+        timeout=client.timeout,
     )
     dt = time.monotonic() - t0
     r.raise_for_status()
     out = r.json()
-    n_tokens = out.get("usage", {}).get("completion_tokens", max_tokens)
-    return n_tokens / dt if dt > 0 else 0.0
+    n_tokens = out.get("usage", {}).get("completion_tokens")
+    if type(n_tokens) is not int or n_tokens < 0:
+        raise ValueError("missing or invalid completion_tokens; cannot measure throughput")
+    return {"completion_tokens": n_tokens, "wall_s": dt}
 
 
 def main() -> int:
@@ -69,52 +71,64 @@ def main() -> int:
     )
     parser.add_argument("--evidence", choices=[e.value for e in EvidenceKind], required=True)
     parser.add_argument("--out", default=None)
+    parser.add_argument("--warmup-requests", type=int, default=1)
+    parser.add_argument("--prompt-file", type=Path)
+    parser.add_argument("--timeout", type=float, default=120)
     args = parser.parse_args()
 
     url = f"http://{args.host}:{args.port}/v1/chat/completions"
     model = args.served_model_name
 
-    with httpx.Client() as client:
-        try:
-            single = _one_completion(client, url, model, "Explain TCP in 100 words.", 128)
-        except httpx.HTTPError as exc:
-            print(f"single-stream measurement failed: {exc}", file=sys.stderr)
-            return 1
+    if args.batch_size <= 0 or args.max_tokens <= 0 or args.warmup_requests < 0:
+        parser.error("batch-size/max-tokens must be positive; warmup-requests nonnegative")
+    prompt = args.prompt_file.read_text(encoding="utf-8") if args.prompt_file else "Explain DNS."
+    failures = []
 
-        t0 = time.monotonic()
+    def attempt(client):
         try:
-            with cf.ThreadPoolExecutor(max_workers=args.batch_size) as ex:
-                list(
-                    ex.map(
-                        lambda _: _one_completion(
-                            client, url, model, "Explain DNS.", args.max_tokens
-                        ),
-                        range(args.batch_size),
-                    )
-                )
-        except httpx.HTTPError as exc:
-            print(f"batch measurement failed: {exc}", file=sys.stderr)
-            return 1
-        batch_wall_s = time.monotonic() - t0
-        batch_tok_s = (
-            (args.batch_size * args.max_tokens) / batch_wall_s if batch_wall_s > 0 else 0.0
-        )
+            return _one_completion(client, url, model, prompt, args.max_tokens)
+        except (httpx.HTTPError, ValueError, TypeError, AttributeError) as exc:
+            failures.append(str(exc))
+            return None
 
-    result = ServingThroughputResult(
-        single_stream_tok_s=round(single, 1),
-        batch_tok_s=round(batch_tok_s, 1),
-        batch_size=args.batch_size,
-    )
+    started = time.monotonic()
+    with httpx.Client(timeout=args.timeout, trust_env=False) as client:
+        warm_start = time.monotonic()
+        warmup = [attempt(client) for _ in range(args.warmup_requests)]
+        warmup_wall = time.monotonic() - warm_start
+        single = attempt(client)
+        batch_start = time.monotonic()
+        with cf.ThreadPoolExecutor(max_workers=args.batch_size) as ex:
+            batch = list(ex.map(lambda _: attempt(client), range(args.batch_size)))
+        batch_wall = time.monotonic() - batch_start
+    actual_tokens = sum(item["completion_tokens"] for item in batch if item is not None)
+    result = {
+        "single_request": single,
+        "single_stream_tok_s": single["completion_tokens"] / single["wall_s"] if single else None,
+        "batch_tok_s": actual_tokens / batch_wall,
+        "batch_completion_tokens": actual_tokens,
+        "batch_wall_s": batch_wall,
+        "batch_requests": batch,
+        "warmup_requests": warmup,
+        "warmup_wall_s": warmup_wall,
+        "total_runtime_s": time.monotonic() - started,
+        "failures": failures,
+        "memory": {
+            "status": "not_collected",
+            "reason": "external server; capture device metrics separately",
+        },
+        "loading": {"status": "not_measured", "reason": "server must already be running"},
+        "timing_scope": "non-streaming end-to-end; TTFT/decode not measured",
+        "settings": vars(args)
+        | {"prompt_file": str(args.prompt_file) if args.prompt_file else None},
+    }
     record = EvidenceRecord(
         label="vllm_throughput",
         host=HostEnvironment(args.host_env),
         evidence=EvidenceKind(args.evidence),
-        command=(
-            f"measure_throughput.py --host {args.host} --port {args.port} "
-            f"--batch-size {args.batch_size}"
-        ),
-        passed=True,
-        result=result.model_dump(),
+        command=" ".join(sys.argv),
+        passed=not failures,
+        result=result,
         measured_at=datetime.now(UTC),
     )
 
@@ -122,7 +136,7 @@ def main() -> int:
     print(out_json)
     if args.out:
         Path(args.out).write_text(out_json, encoding="utf-8")
-    return 0
+    return 0 if record.passed else 1
 
 
 if __name__ == "__main__":
