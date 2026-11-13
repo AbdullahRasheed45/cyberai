@@ -2,6 +2,13 @@
 
 ## Current update — 13 November 2026
 
+Enverge-specific preparation: `ENVERGE_SETUP.md` distinguishes custom GPU Docker
+from an already compatible provider GPU environment. `provider_probe.py` records
+actual capabilities without installing frameworks or downloading weights. The
+existing-environment route remains conditional/manual, with distinct provenance;
+Docker lifecycle evidence cannot be fabricated for it. Pinned Hub snapshot sizes
+total 92.3 decimal GB before images/outputs; download estimates are conditional.
+
 Windows Docker Desktop is now running. A network-disabled, read-only Linux amd64
 Python container passed all five live HTTP reference profiles. See
 `RENTAL_START_HERE.md` for its immutable image digest and remaining pre-booking

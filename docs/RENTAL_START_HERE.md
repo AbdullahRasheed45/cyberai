@@ -1,5 +1,8 @@
 # Start here: 24-hour DGX Spark hardware trial
 
+Enverge users: first read `ENVERGE_SETUP.md` and run its provider inventory.
+Custom GPU Docker support is unconfirmed; do not assume the SSH instance is a host.
+
 13 November 2026. Primary purpose: measure GB10 latency, tokens/sec,
 context/concurrency limits, memory pressure and real training/save/reload speed
 before purchasing hardware. A separate cyber lab is optional for this trial.
