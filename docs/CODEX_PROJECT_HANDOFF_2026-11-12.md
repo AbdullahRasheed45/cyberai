@@ -2,6 +2,12 @@
 
 ## Current update — 13 November 2026
 
+Windows Docker Desktop is now running. A network-disabled, read-only Linux amd64
+Python container passed all five live HTTP reference profiles. See
+`RENTAL_START_HERE.md` for its immutable image digest and remaining pre-booking
+choices. Earlier statements that Docker is unavailable refer to the prior host
+state. No ARM64/GPU image was executed by this rehearsal.
+
 Primary rental scope is hardware validation; follow `RENTAL_START_HERE.md`.
 WORKLOAD_DOMAIN=detection uses the lab-free integration path. Shared training
 cache now persists across trainer/reload containers. The optional web scope

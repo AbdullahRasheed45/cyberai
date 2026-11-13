@@ -5,6 +5,43 @@ context/concurrency limits, memory pressure and real training/save/reload speed
 before purchasing hardware. A separate cyber lab is optional for this trial.
 No command below provisions paid compute or authorises a purchase.
 
+## Pre-booking checklist and Windows Docker evidence
+
+Docker Desktop on the development laptop was verified running on 13 November:
+Linux amd64 engine 29.9.2, approximately 3.7 GiB memory. A disposable CPU-only
+container ran all five live HTTP reference profiles successfully, with network
+disabled, source mounted read-only, root filesystem read-only and temporary
+files limited to a 64 MiB tmpfs. Python image identity:
+`python@sha256:07d4824036af339fa1b6ef769cc99d9c10a141769538b52b3b597c84f7a7b535`.
+This establishes Linux CPU/container portability, not GB10 or CUDA compatibility.
+The temporary container/database were removed. Only the pulled Python image remains.
+
+The per-user Docker CLI/helper directory is
+`C:\Users\abdul\AppData\Local\Programs\DockerDesktop\resources\bin`.
+If the current terminal cannot find Docker or its credential helper, prepend this
+directory to that terminal's PATH or open a terminal with the installed PATH.
+
+Before booking, complete these operational choices:
+- Confirm provider offers actual GB10/ARM64 with GPU-enabled Docker and sufficient
+  storage; obtain access instructions, billing rules and teardown procedure.
+- Choose the durable evidence/adapter destination and rehearse a small copy and
+  independent readback. Confirm repository access from the intended engine.
+- Select and hash the actual training files, including the long-context profile;
+  the tiny detection pilot alone cannot forecast representative training cadence.
+- State acceptable round duration and context/concurrency needs before judging
+  results. The non-thinking integration pin does not settle the reasoning model
+  comparison. No unverified replacement model identity is supplied here.
+- Check download/cache availability with the provider. Do not spend most of the
+  rental fetching images/weights if staging is available before billing.
+
+First-hour rental gates (require the actual machine): image dependency probes,
+CUDA/driver/bf16 compatibility, local model identity and available memory/storage.
+Unresolved FILL dependency pins remain deliberately fail-closed until those probes.
+The optional Windows-lab VM/SSH setup does not block the hardware-only trial.
+Direct DRAM bandwidth profiling remains outside the implemented token-rate harness;
+record bandwidth-sensitive latency/throughput curves without labelling them a
+direct GB/s measurement.
+
 ## 1. Which repository to clone
 
 Use the existing repository and feature branch; `main` is intentionally minimal.
