@@ -41,9 +41,21 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from rental.docker_runtime import GPU_MODES, ULIMIT_ARGS  # noqa: E402
+from rental.docker_runtime import (  # noqa: E402
+    GPU_MODES,
+    ULIMIT_ARGS,
+    gpu_name_argv,
+    parse_gpu_name,
+)
 
-PROBE_PORT = 18999
+
+def free_port() -> int:
+    """A loopback port nothing is listening on now (so a reply can only be ours)."""
+    import socket
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
 
 
 def run(argv, timeout=300):
@@ -127,52 +139,44 @@ def main():
         print(json.dumps(report, indent=2))
         return 1
 
-    # 2. GPU access modes — try all, record all, choose the first that sees a GPU
+    # 2. GPU access modes — try all, record all, choose the first that sees a GB10.
+    #    The answer is a tagged line (NVIDIA images print a banner first).
     gpu_results = {}
     for mode, flags in ({} if args.rehearsal_no_gpu else GPU_MODES).items():
-        r = run(
-            [
-                "docker",
-                "run",
-                "--rm",
-                *flags,
-                image,
-                "nvidia-smi",
-                "--query-gpu=name,driver_version,compute_cap",
-                "--format=csv,noheader",
-            ],
-            timeout=180,
-        )
-        r["sees_gpu"] = r["ok"] and bool(r["output"].strip()) and "error" not in r["output"].lower()
-        r["sees_gb10"] = r["sees_gpu"] and "GB10" in r["output"]
+        r = run(gpu_name_argv(image, flags), timeout=300)
+        r["gpu_name"] = parse_gpu_name(r["output"])
+        r["sees_gpu"] = r["ok"] and r["gpu_name"] is not None
+        r["sees_gb10"] = r["sees_gpu"] and "GB10" in r["gpu_name"]
         gpu_results[mode] = r
     report["checks"]["gpu_modes"] = gpu_results
     working = [m for m, r in gpu_results.items() if r["sees_gpu"]]
     if args.rehearsal_no_gpu:
-        working = ["gpus"]
-        gpu_results["gpus"] = {"sees_gpu": False, "sees_gb10": True, "output": "skipped"}
         report["checks"]["gpu_modes"] = "SKIPPED (rehearsal)"
-    if not working:
-        report["blockers"].append("no Docker GPU mode exposed a GPU (see checks.gpu_modes)")
-        save()
-        print(json.dumps(report, indent=2))
-        return 1
-    preferred = [m for m in working if gpu_results[m]["sees_gb10"]] or working
-    gpu_mode = preferred[0]
-    report["chosen"]["DOCKER_GPU_MODE"] = gpu_mode
-    if not gpu_results[gpu_mode]["sees_gb10"]:
-        report["blockers"].append(
-            "a GPU is visible but it is not reported as GB10 — this is not DGX Spark evidence"
-        )
-    gpu = GPU_MODES[gpu_mode]
+        gpu_mode, gpu = None, []  # the remaining checks run without GPU flags
+    else:
+        if not working:
+            report["blockers"].append("no Docker GPU mode exposed a GPU (see checks.gpu_modes)")
+            save()
+            print(json.dumps(report, indent=2))
+            return 1
+        preferred = [m for m in working if gpu_results[m]["sees_gb10"]] or working
+        gpu_mode = preferred[0]
+        report["chosen"]["DOCKER_GPU_MODE"] = gpu_mode
+        if not gpu_results[gpu_mode]["sees_gb10"]:
+            report["blockers"].append(
+                "a GPU is visible but it is not reported as GB10 — this is not DGX Spark evidence"
+            )
+        gpu = GPU_MODES[gpu_mode]
 
-    # 3. shared memory
-    ipc = run(["docker", "run", "--rm", "--ipc=host", image, "true"], timeout=120)
+    # 3. shared memory — tested WITH the chosen GPU flags, as real containers run
+    ipc = run(["docker", "run", "--rm", *gpu, "--ipc=host", image, "true"], timeout=120)
     report["checks"]["ipc_host"] = ipc
     if ipc["ok"]:
         report["chosen"]["DOCKER_IPC_HOST"] = "1"
+        ipc_flags = ["--ipc=host"]
     else:
-        shm = run(["docker", "run", "--rm", "--shm-size", "16g", image, "true"], timeout=120)
+        ipc_flags = ["--shm-size", "16g"]
+        shm = run(["docker", "run", "--rm", *gpu, *ipc_flags, image, "true"], timeout=120)
         report["checks"]["shm_size_16g"] = shm
         report["chosen"]["DOCKER_IPC_HOST"] = "0"
         report["chosen"]["DOCKER_SHM_SIZE"] = "16g"
@@ -180,9 +184,10 @@ def main():
             report["blockers"].append("neither --ipc=host nor --shm-size 16g is permitted")
 
     # 4. ulimits (an unprivileged sandbox may not raise its hard limits)
-    ul = run(["docker", "run", "--rm", *ULIMIT_ARGS, image, "true"], timeout=120)
+    ul = run(["docker", "run", "--rm", *gpu, *ULIMIT_ARGS, image, "true"], timeout=120)
     report["checks"]["ulimits"] = ul
     report["chosen"]["DOCKER_ULIMITS"] = "1" if ul["ok"] else "0"
+    ulimit_flags = list(ULIMIT_ARGS) if ul["ok"] else []
 
     # 5. bind mounts: read a marker from the checkout, write one back. The probe lives
     #    in runs/ (git-ignored) because that is exactly where training writes.
@@ -228,10 +233,34 @@ def main():
     with contextlib.suppress(OSError):
         probe_dir.rmdir()
 
-    # 6. networking: loopback publish, else host network
+    # 5b. everything together, exactly as training runs: GPU + IPC + ulimits + the
+    #     checkout mounted. Individually-working flags can still fail in combination.
+    if not args.rehearsal_no_gpu and not report["blockers"]:
+        mount_flags = ["-v", f"{repo}:/work", "-w", "/work"]
+        combined = run(
+            gpu_name_argv(image, [*gpu, *ipc_flags, *ulimit_flags, *mount_flags]), timeout=300
+        )
+        combined["gpu_name"] = parse_gpu_name(combined["output"])
+        if combined["gpu_name"] is None and ulimit_flags:
+            # Ulimits are an optimisation; drop them before declaring a blocker.
+            retry = run(gpu_name_argv(image, [*gpu, *ipc_flags, *mount_flags]), timeout=300)
+            retry["gpu_name"] = parse_gpu_name(retry["output"])
+            report["checks"]["combined_without_ulimits"] = retry
+            if retry["gpu_name"] is not None:
+                report["chosen"]["DOCKER_ULIMITS"] = "0"
+                combined = retry
+        report["checks"]["combined"] = combined
+        if combined["gpu_name"] is None:
+            report["blockers"].append(
+                "GPU + shared-memory + mount flags do not work together (see checks.combined)"
+            )
+
+    # 6. networking: loopback publish, else host network (on a port nothing else uses)
+    port = free_port()
+    report["checks"]["network_probe_port"] = port
     chosen_net = None
     for net, flags, host in (
-        ("publish", ["-p", f"127.0.0.1:{PROBE_PORT}:{PROBE_PORT}"], "0.0.0.0"),
+        ("publish", ["-p", f"127.0.0.1:{port}:{port}"], "0.0.0.0"),
         ("host", ["--network", "host"], "127.0.0.1"),
     ):
         name = f"cyberai_netprobe_{uuid.uuid4().hex[:6]}"
@@ -247,7 +276,7 @@ def main():
                 "python3",
                 "-m",
                 "http.server",
-                str(PROBE_PORT),
+                str(port),
                 "--bind",
                 host,
             ],
@@ -257,7 +286,7 @@ def main():
         if started["ok"]:
             for _ in range(30):
                 try:
-                    with urllib.request.urlopen(f"http://127.0.0.1:{PROBE_PORT}/", timeout=2) as r:
+                    with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=2) as r:
                         reachable = r.status == 200
                 except OSError:
                     time.sleep(1)

@@ -43,6 +43,35 @@ GPU_MODES = {
 NETWORK_MODES = ("publish", "host")
 ULIMIT_ARGS = ["--ulimit", "memlock=-1", "--ulimit", "stack=67108864"]
 
+# Asks a container which GPU it sees. NVIDIA images print a banner on start, so the
+# answer is tagged and parsed (parse_gpu_name) rather than taking all of stdout. If
+# the runtime does not inject nvidia-smi, PyTorch (present in the pinned images) is
+# asked instead, so a working GPU is never reported missing for want of a tool.
+GPU_NAME_MARKER = "CYBERAI_GPU_NAME:"
+GPU_NAME_SHELL = (
+    "N=$(nvidia-smi --query-gpu=name,driver_version,compute_cap --format=csv,noheader "
+    "2>/dev/null | head -1); "
+    'if [ -z "$N" ]; then N=$(python3 -c "import torch; '
+    "print(torch.cuda.get_device_name(0) + ', via torch' if torch.cuda.is_available() "
+    "else 'NO_CUDA')\" 2>/dev/null); fi; "
+    f'echo "{GPU_NAME_MARKER}${{N:-NONE}}"'
+)
+
+
+def gpu_name_argv(image: str, gpu_flags: list[str]) -> list[str]:
+    """`docker run` argv that prints one tagged GPU-name line from inside `image`."""
+    return ["docker", "run", "--rm", *gpu_flags, image, "sh", "-c", GPU_NAME_SHELL]
+
+
+def parse_gpu_name(output: str) -> str | None:
+    """The tagged GPU name, or None when the container saw no CUDA device."""
+    for line in (output or "").splitlines():
+        index = line.find(GPU_NAME_MARKER)
+        if index != -1:
+            name = line[index + len(GPU_NAME_MARKER) :].strip()
+            return None if name in ("", "NONE", "NO_CUDA") else name
+    return None
+
 
 class DockerRuntimeError(ValueError):
     pass
@@ -103,6 +132,34 @@ def server_bind_host(env=None) -> str:
     return "127.0.0.1" if network_mode(env) == "host" else "0.0.0.0"
 
 
+MEASURED_ENV_FILE = "artifacts/docker_runtime/docker_env.sh"
+
+
+def read_measured(path=MEASURED_ENV_FILE) -> dict[str, str]:
+    """KEY -> value from the `export KEY=value` lines docker_runtime_setup.py wrote."""
+    values = {}
+    try:
+        with open(path, encoding="utf-8") as handle:
+            text = handle.read()
+    except OSError:
+        return values
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("export ") and "=" in line:
+            key, _, raw = line[len("export ") :].partition("=")
+            parts = shlex.split(raw) or [""]
+            values[key.strip()] = parts[0]
+    return values
+
+
+def unsourced_settings(env=None, path=MEASURED_ENV_FILE) -> list[str]:
+    """Measured settings this shell does not have — i.e. the operator opened a new
+    terminal and forgot `source artifacts/docker_runtime/docker_env.sh`. Without it the
+    defaults (`--gpus all`) are used, which fail on sandboxed providers."""
+    env = _env(env)
+    return [f"{key}={value}" for key, value in read_measured(path).items() if env.get(key) != value]
+
+
 def describe(env=None) -> dict:
     return {
         "gpu_mode": gpu_mode(env),
@@ -116,6 +173,16 @@ def describe(env=None) -> dict:
 def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     what = argv[0] if argv else "all"
+    if what == "check":
+        missing = unsourced_settings()
+        if missing:
+            print(
+                f"measured Docker settings not active in this shell ({', '.join(missing)}); "
+                f"run: source {MEASURED_ENV_FILE}",
+                file=sys.stderr,
+            )
+            return 3
+        return 0
     try:
         if what == "gpu":
             flags = gpu_args()
@@ -129,7 +196,8 @@ def main(argv=None) -> int:
             flags = [server_bind_host()]
         else:
             print(
-                "usage: python3 -m rental.docker_runtime gpu|resources|all|network PORT|bind-host",
+                "usage: python3 -m rental.docker_runtime "
+                "check|gpu|resources|all|network PORT|bind-host",
                 file=sys.stderr,
             )
             return 2

@@ -165,6 +165,14 @@ def resolve(freeze: dict, env: dict | None = None) -> ResolvedConfig:
         docker_runtime.describe(env)
     except docker_runtime.DockerRuntimeError as exc:
         raise FreezeInvalid(f"docker runtime settings invalid: {exc}") from None
+    missing = docker_runtime.unsourced_settings(
+        env, os.path.join(repo, docker_runtime.MEASURED_ENV_FILE)
+    )
+    if missing:
+        raise FreezeInvalid(
+            "measured Docker settings are not active in this shell "
+            f"({', '.join(missing)}); run: source {docker_runtime.MEASURED_ENV_FILE}"
+        )
     try:
         serving = load_serving_config(env.get("SERVING_CONFIG") or None)
     except Exception as exc:

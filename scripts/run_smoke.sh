@@ -9,6 +9,7 @@ set -euo pipefail
 : "${UNSLOTH_IMAGE:?set UNSLOTH_IMAGE to the pinned unsloth_image digest from the reviewed FREEZE}"
 : "${SMOKE_REVISION:?set SMOKE_REVISION to the pinned trainable_base_commit}"
 : "${SMOKE_OUT:?set SMOKE_OUT to a fresh runs/<RUN_ID> directory}"
+python3 -m rental.docker_runtime check   # stops if docker_env.sh was not sourced here
 read -r -a DOCKER_FLAGS <<< "$(python3 -m rental.docker_runtime all)"
 mkdir -p "$SMOKE_OUT" runs/hf_cache
 chmod 777 "$SMOKE_OUT" runs/hf_cache  # the image may run as a different uid

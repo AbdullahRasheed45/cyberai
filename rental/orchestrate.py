@@ -287,6 +287,15 @@ def _real_executor() -> Executor:  # pragma: no cover - real side effects
     source = {"last": "unavailable"}
 
     def start(name, argv):
+        # The two container names are reserved for this lifecycle (runs never overlap,
+        # see RENTAL_START_HERE). A leftover from an interrupted run would make
+        # `docker run --name` fail, so remove it first; the removal is logged.
+        leftover = subprocess.run(
+            ["docker", "ps", "-aq", "-f", f"name=^{name}$"], capture_output=True, text=True
+        ).stdout.strip()
+        if leftover:
+            print(f"[orchestrate] removing leftover container {name} ({leftover})", flush=True)
+            subprocess.call(["docker", "rm", "-f", name])
         subprocess.check_call(argv)
 
     def follow_logs(name, path):
@@ -424,7 +433,25 @@ def main():
             )
         )
         sys.exit(1)
+    install_termination_handler()
     run(rc, _real_executor())
+
+
+class Terminated(Exception):
+    """SIGTERM/SIGHUP (tracker timeout, closed SSH session) as an ordinary failure,
+    so run()'s cleanup stops the serving containers and exports partial evidence."""
+
+
+def install_termination_handler():
+    import signal
+
+    def handler(signum, frame):
+        raise Terminated(f"received signal {signal.Signals(signum).name}")
+
+    for name in ("SIGTERM", "SIGHUP"):
+        sig = getattr(signal, name, None)
+        if sig is not None:
+            signal.signal(sig, handler)
 
 
 if __name__ == "__main__":

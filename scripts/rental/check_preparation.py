@@ -27,6 +27,14 @@ def main():
     for command in commands:
         if not shutil.which(command):
             blockers.append(f"{command} unavailable on this host")
+    from rental.docker_runtime import MEASURED_ENV_FILE, unsourced_settings
+
+    missing = unsourced_settings()
+    if missing:
+        blockers.append(
+            f"measured Docker settings not active in this shell ({', '.join(missing)}): "
+            f"run `source {MEASURED_ENV_FILE}`"
+        )
     for key in required:
         if not os.environ.get(key):
             blockers.append(f"configure {key}")

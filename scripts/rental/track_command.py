@@ -79,11 +79,18 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--timeout", type=float, default=21600)
+    parser.add_argument(
+        "--grace",
+        type=float,
+        default=600,
+        help="seconds between SIGTERM at timeout and SIGKILL (lets the lifecycle "
+        "stop containers and export evidence)",
+    )
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     command = args.command[1:] if args.command[:1] == ["--"] else args.command
-    if not command or args.timeout <= 0:
-        parser.error("a command and positive timeout are required")
+    if not command or args.timeout <= 0 or args.grace < 0:
+        parser.error("a command, a positive timeout and a non-negative grace are required")
     log = args.out.with_suffix(".log")
     if args.out.exists() or log.exists():
         parser.error("choose new output paths; prior evidence is never overwritten")
@@ -116,6 +123,7 @@ def main():
     }
     started = time.monotonic()
     process = None
+    terminate_sent = None  # monotonic time SIGTERM was sent at timeout
     try:
         revision = subprocess.run(
             ["git", "rev-parse", "HEAD"], capture_output=True, text=True, timeout=3
@@ -170,22 +178,26 @@ def main():
                 persist()
                 if process.poll() is not None:
                     break
-                if time.monotonic() - started >= args.timeout:
+                now = time.monotonic()
+                if terminate_sent is None and now - started >= args.timeout:
+                    # Ask politely first: the orchestrator turns SIGTERM into a normal
+                    # failure that stops its containers and exports partial evidence.
                     record["timed_out"] = True
+                    record["state"] = "TERMINATING"
+                    terminate_sent = now
                     if os.name != "nt":
                         os.killpg(process.pid, signal.SIGTERM)
                     else:
                         process.terminate()
+                elif terminate_sent is not None and now - terminate_sent >= args.grace:
+                    record["killed_after_grace"] = True
+                    if os.name != "nt":
+                        os.killpg(process.pid, signal.SIGKILL)
+                    else:
+                        process.kill()
                     break
                 time.sleep(min(1, args.timeout / 2))
-            try:
-                record["exit_code"] = process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                if os.name != "nt":
-                    os.killpg(process.pid, signal.SIGKILL)
-                else:
-                    process.kill()
-                record["exit_code"] = process.wait(timeout=5)
+            record["exit_code"] = process.wait(timeout=30)
     except Exception as exc:
         record["error"] = f"{type(exc).__name__}: {exc}"
     finally:

@@ -38,7 +38,9 @@ pinned_image() {
 }
 
 runtime_flags() {
-    (cd "$REPO_ROOT" && python3 -m rental.docker_runtime "$@")
+    # `check` fails (and this script stops) if measured settings were not sourced.
+    (cd "$REPO_ROOT" && python3 -m rental.docker_runtime check && python3 -m rental.docker_runtime "$@") \
+        || { echo "[gb10_serve] Docker runtime settings problem (see message above)." >&2; exit 1; }
 }
 
 render_args() {
@@ -60,8 +62,10 @@ cmd_preflight_container() {
     local image
     image="$(pinned_image)"
     echo "[gb10_serve] running in-container preflight with image: $image"
-    local gpu_flags
-    read -r -a gpu_flags <<< "$(runtime_flags gpu)"
+    # Plain assignment so `set -e` stops here if the runtime check fails.
+    local gpu_text gpu_flags
+    gpu_text="$(runtime_flags gpu)"
+    read -r -a gpu_flags <<< "$gpu_text"
     docker run --rm "${gpu_flags[@]}" -v "$REPO_ROOT:/work" -w /work "$image" \
         python3 scripts/gb10/preflight_in_container.py
 }

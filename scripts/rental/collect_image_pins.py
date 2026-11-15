@@ -11,10 +11,17 @@ from pathlib import Path
 
 import yaml
 
+from rental.docker_runtime import MEASURED_ENV_FILE, unsourced_settings
 from rental.probe import extract_probe, probe_argv
 
 
 def main():
+    missing = unsourced_settings()
+    if missing:  # wrong GPU flags would make a healthy image look broken
+        raise SystemExit(
+            f"measured Docker settings not active in this shell ({', '.join(missing)}); "
+            f"run: source {MEASURED_ENV_FILE}"
+        )
     freeze_path = Path("scripts/rental/FREEZE.yaml")
     cfg = yaml.safe_load(freeze_path.read_text(encoding="utf-8"))
     out = Path("artifacts/image_pin_collection")

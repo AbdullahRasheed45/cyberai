@@ -75,7 +75,7 @@ def snapshot(root: Path, runs: Path):
             if latest.get("utc"):
                 age = (datetime.now(UTC) - datetime.fromisoformat(latest["utc"])).total_seconds()
                 value["sample_age_s"] = age
-                if value["state"] == "RUNNING" and age > 15:
+                if value["state"] in {"RUNNING", "TERMINATING"} and age > 15:
                     value["signals"].append("STALE_TELEMETRY: inspect process and connection")
             memory = latest.get("host_memory_kib") or {}
             if (
@@ -87,6 +87,10 @@ def snapshot(root: Path, runs: Path):
                 )
             if latest.get("gpu_error"):
                 value["signals"].append("GPU_TELEMETRY_UNAVAILABLE")
+            if value["state"] == "TERMINATING":
+                value["signals"].append(
+                    "TIMEOUT_REACHED: stopping containers and exporting evidence (grace period)"
+                )
             if value["state"] in {"FAILED", "TIMED_OUT"}:
                 value["signals"].append("COMMAND_FAILED: inspect saved console log")
             trackers.append(value)
