@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import socket
 import sys
 import tempfile
 from pathlib import Path
@@ -31,14 +32,27 @@ def main():
             before = lab.snapshot()
             observations = []
             verdict = "NOT_VERIFIED"
-            print(json.dumps({"ready": True, "scenario": "owned-http-authz-v1"}), flush=True)
-            for raw in sys.stdin:
+            # "host" lets a caller tell a genuine remote (SSH-executed) worker
+            # apart from a local in-process one (Astra finding 23) — a rehearsal
+            # that only ever ran locally cannot claim it exercised the link.
+            print(
+                json.dumps(
+                    {
+                        "ready": True,
+                        "scenario": "owned-http-authz-v1",
+                        "host": socket.gethostname(),
+                    }
+                ),
+                flush=True,
+            )
+            # every stdin line counts, valid or rejected (Astra finding 18)
+            for actions_attempted, raw in enumerate(sys.stdin, start=1):
                 try:
                     action = json.loads(raw)
                     if not isinstance(action, dict) or set(action) != {"kind"}:
                         raise ValueError("only a kind field is allowed")
                     kind = action["kind"]
-                    if len(observations) >= 16 and kind != "finish":
+                    if actions_attempted > 16 and kind != "finish":
                         raise ValueError("action budget exhausted")
                     if kind == "discover":
                         result = {

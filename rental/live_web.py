@@ -31,7 +31,8 @@ class LabSession:
         self.reader = threading.Thread(target=read, daemon=True)
         self.reader.start()
         try:
-            if self.receive().get("ready") is not True:
+            self.ready_info = self.receive()
+            if self.ready_info.get("ready") is not True:
                 raise ValueError("lab failed readiness")
         except Exception:
             self.close()
