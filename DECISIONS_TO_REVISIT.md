@@ -99,6 +99,7 @@ This file tracks choices made because of a **current constraint** that will chan
 - **Trigger:** Stage 1.5 measurement runs; or a ~100-trajectory pilot SFT result exists.
 - **Action on trigger:** Apply the two-way revision rule (lower the bar only if a ~100-pilot beats baseline; park Loop B if a full round fails twice). **Do not silently edit the pre-registered numbers** — revise only per the rule, and log the revision here.
 - **Issue:** #6
+- **Cross-reference (Astra finding 29, 15 Nov 2026):** `docs/MASTER_BRIEF_v2.1.md` §7.8/D-3 **proposes** replacing "park Loop B for a year on the second failure" with "diagnose and suspend automatic promotion; continue controlled first-SFT research toward the January target." This is a PROPOSED amendment, not yet owner-approved — the rule above, as written, is what governs until the owner confirms D-3.
 
 ---
 
@@ -168,6 +169,7 @@ This file tracks choices made because of a **current constraint** that will chan
 - **Trigger:** the GB10 trial shows the MoE model cannot be served or trained.
 - **Action on trigger:** report the evidence to the owner; an alternative model is an
   owner decision, never an automatic fallback.
+- **Cross-reference (Astra finding 29, 15 Nov 2026):** this entry pins Instruct-2507 as the model; it does not forbid *comparing* it with Thinking-2507. `docs/MASTER_BRIEF_v2.1.md` T2A.14 runs that comparison and is consistent with this decision — switching the pinned model on the comparison's result would be a new, separate owner decision, not an automatic consequence of T2A.14.
 - **Issue:** #18
 
 ## Trigger group: `revisit-on-dgx` — provider sandbox
@@ -198,6 +200,7 @@ This file tracks choices made because of a **current constraint** that will chan
 - **Action on trigger:** build `verifier_service` to the ARCHITECTURE shape with
   `detection_verifier` as its domain core and its isolation/acceptance as infra; keep
   `rental/` as a trial tool outside `services/`; keep `lab/` on the lab machine.
+- **Conflict, unresolved (Astra finding 29, 15 Nov 2026):** `docs/MASTER_BRIEF_v2.1.md` §3 C-2 PROPOSES a *permanent* replacement of the 16-network-service design with one Python application (`engine/`) and instructs Stage 2A (task T2A.1) to delete `services/*` outright, not populate it. That is not compatible with this entry's "action on trigger" above. Until the owner confirms C-2, this entry — not C-2 — governs: do not delete `services/*` as a side effect of starting Stage 2A. If the owner confirms C-2, this entry's action is superseded and should be closed as such, not silently reinterpreted.
   Preserve the import rules (lab imports nothing from the engine; no LLM in gate code).
 - **Issue:** #20
 
