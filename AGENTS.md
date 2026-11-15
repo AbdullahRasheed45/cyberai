@@ -2,7 +2,7 @@
 
 ## Current product context (12 November 2026)
 
-**15 November 2026:** `docs/MASTER_PROJECT_BRIEF_v1.4.md` is the current consolidated brief (design, true status, all stages, recommended changes awaiting owner approval, open owner decisions). Owner decisions since the paragraph below: Qwen3-30B-A3B MoE only; 4-bit QLoRA training by default with bf16 as a measured comparison; the trial runs in Enverge's sandboxed container. Read v1.4 first, then `docs/OWNER_GUIDE_GB10_TRIAL.md` for the trial.
+**15 November 2026:** `docs/MASTER_PROJECT_BRIEF_v1.5.md` is the current consolidated brief (design, true status, all stages, recommended changes awaiting owner approval, open owner decisions). Owner decisions since the paragraph below: Qwen3-30B-A3B MoE only; 4-bit QLoRA training by default with bf16 as a measured comparison; the trial runs in Enverge's sandboxed container. Read v1.5 first, then `docs/OWNER_GUIDE_GB10_TRIAL.md` for the trial.
 
 Read `docs/MASTER_PROJECT_BRIEF_v1.2_FOR_CRITIQUE.md` (historical architecture), then `docs/PRODUCT_ALIGNMENT_AND_SIX_DOMAIN_CURRICULUM.md` and `docs/CODEX_PROJECT_HANDOFF_2026-11-12.md`. Treat `docs/MASTER_PROJECT_BRIEF_v1.3.md` as a proposed consolidation, subject to the owner's latest instructions and implementation evidence. Product-only scope; offensive-first authorised labs; both learning loops; all six domains with staged resource-aware activation. Targets: fine-tuned model by 15 January 2027; six-domain product by 30 June 2027. Round-18 defects remain open until demonstrated fixed in actual code. No GPU check is passed without execution evidence. Renting compute, purchasing hardware, merging and production deployment each require explicit owner authorisation.
 

@@ -17,7 +17,7 @@ it, trains a 4-bit QLoRA adapter, reloads and deploys it, and exports hashed
 evidence, with a live tracker. Nothing has run on a GPU yet. There is no learning
 engine, model registry or sealed benchmark service yet — see `docs/ARCHITECTURE.md`.
 
-**The design, status and plan:** `docs/MASTER_PROJECT_BRIEF_v1.4.md`.
+**The design, status and plan:** `docs/MASTER_PROJECT_BRIEF_v1.5.md`.
 
 **Running the trial:** start with `docs/OWNER_GUIDE_GB10_TRIAL.md` (plain English),
 then `docs/RENTAL_START_HERE.md` (exact commands).

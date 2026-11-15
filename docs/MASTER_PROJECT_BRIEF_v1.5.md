@@ -1,11 +1,17 @@
 # Autonomous, Self-Improving Cybersecurity AI — Master Project Brief
 
-**Version:** 1.4 (consolidated, self-contained)
+**Version:** 1.5 (consolidated, self-contained)
 **Date:** 2026-11-15
-**Supersedes:** v1.3 (2026-11-12) as the single current brief. v1.1/v1.2/v1.3 are kept in `docs/` as history.
+**Supersedes:** v1.4 (same day) and v1.3 as the single current brief. v1.1–v1.3 are kept in `docs/` as history.
+**Structure:** **Part I** (§0–§22) — what we are building, the decisions, the true status and every stage. **Part II** (§23–§33) — the recipe: how one Spark actually produces the model, with the compute budget, data, training and evaluation recipes, and the order of work.
 **Status of this document:** prepared for owner sign-off. Where it records an owner decision it says so and cites the decision log; where something is unresolved it is marked **OPEN**. Nothing here claims a result that has not been produced.
 
 **The one-paragraph position.** We are turning an open-weight model (Qwen3-30B-A3B) into a cybersecurity specialist that improves its own weights only from machine-verified experience. The design has not changed since v1.2. What has changed is that the repository now contains a tested, end-to-end *trial pipeline* for the hardware decision, a narrow assured verifier, and a first owned-lab workflow — and **nothing has yet run on a GPU**. The next step is a single authorised ~24-hour trial on a rented GB10; its measured results decide the ~£5k DGX Spark purchase.
+
+**What changed in v1.5 (over v1.4)**
+- **Part II added** — v1.4 said what and in what order but not *how* on a Spark-only budget. Part II supplies the daily rhythm, the compute arithmetic, and the data, training, evaluation and serving recipes.
+- **Working material restored from v1.1** that v1.4 had dropped: refusal handling, the measures for reaching win volume, the diagnosis table, coverage measurement, retention rules.
+- **The Spark-only budget stated as a governing constraint** (§23) with its consequences.
 
 **What changed in v1.4**
 1. **Owner decisions folded in:** Qwen3-30B-A3B MoE **only** (dense fallback removed); **4-bit QLoRA** is the training default with bf16 as a measured comparison; the trial runs on **Enverge** (a sandboxed container, not bare metal); product-only scope; delivery targets 15 January 2027 and 30 June 2027.
@@ -31,7 +37,7 @@ These are the author's recommendations after auditing the repository against the
 
 Markers: **DECISION** (settled, with reasoning) · **OWNER DECISION** (settled by the owner on the date given) · **OPEN** (unsettled) · **HONEST LIMIT** (a permanent boundary against overclaiming) · **STATUS** (what exists today).
 
-**Document map:** §0.1 recommended changes → §0.5 cost → §1 definition → §2 hardware, trial, purchase gate → §3 failure classes → §3.5 threats to the platform → §4 model → §5 serving → §6 verifier → §7 learning engine → §8 curriculum → §9 agents → §10 speed approaches → §11 offensive/defensive + authorisation → §12 lab → §13 observability → §14 rollback → §15 capability boundaries → §16 stack and code architecture → §17 status and roadmap → §18 commercial (deferred) → §19 open decisions → §20 governance → §21 verified setup appendix → §22 document index.
+**Document map:** §0.1 recommended changes → §0.5 cost → §1 definition → §2 hardware, trial, purchase gate → §3 failure classes → §3.5 threats to the platform → §4 model → §5 serving → §6 verifier → §7 learning engine → §8 curriculum → §9 agents → §10 speed approaches → §11 offensive/defensive + authorisation → §12 lab → §13 observability → §14 rollback → §15 capability boundaries → §16 stack and code architecture → §17 status and roadmap → §18 commercial (deferred) → §19 open decisions → §20 governance → §21 verified setup appendix → §22 document index. **Part II:** §23 budget constraint → §24 daily rhythm → §25 compute budget → §26 producing experience → §27 data → §28 training → §29 evaluation and promotion → §30 serving → §31 diagnosis → §32 the path, in order → §33 risks.
 
 ---
 
@@ -293,6 +299,8 @@ Cross-agent sharing → verified-fact caching (Loop A, not fine-tuning) → smal
 Separate **skill** (we want full attacker reasoning) from **authorisation** (enforced in code, ownership-verified, never a prompt).
 
 **Hard boundaries:** autonomous exploitation is confined to the owned lab; a human is in the loop on any live-production offensive action; ownership is verified before any external engagement; every action is logged. Three policy tiers (read-only auto / sandbox auto / production = human-signed token bound to the action hash); the model holds no production credentials. Internet: none by default; mediated, read-only, allow-listed, logged.
+
+**Coverage is measured honestly** against ATT&CK (offensive catalogue and ground-truth labels) and D3FEND (defensive coverage): "handles X of the Y techniques for which we have built lab scenarios" — never a claim about techniques with no scenario. Refusal handling is in §26.
 
 **STATUS:** the built lab tool interface is an allow-list of four named actions against one loopback target with a 12-action cap; it accepts no URL, command or arbitrary payload. The OPA policy service and ownership verification are not built and are not needed until a real external target exists.
 
@@ -601,7 +609,7 @@ Model quality on security tasks · any learning gain · verified-wins/day · beh
 
 | Read | For |
 |---|---|
-| **This brief** | The design, decisions, true status and plan |
+| **This brief** | Part I: design, decisions, true status, every stage. Part II: the recipe on one Spark |
 | `OWNER_GUIDE_GB10_TRIAL.md` | The trial in plain English, and how to read results |
 | `RENTAL_START_HERE.md`, `ENVERGE_SETUP.md`, `MEASUREMENTS_AND_TRACKING.md` | Exact commands, provider specifics, the tracker |
 | `PENDING_HARDWARE_CHECKS.md` | Every claim still needing hardware evidence |
@@ -613,4 +621,160 @@ Model quality on security tasks · any learning gain · verified-wins/day · beh
 
 ---
 
-*End of v1.4. The verifier is the foundation, and its own correctness is assured, not assumed. Loop B is the goal, switched on by measured volume, not hope. Offensive-led in training, contained by design, honest in claim. The hardware is bought on evidence from our own run — and until that run happens, everything here is preparation.*
+# PART II — THE RECIPE: how one Spark produces the model
+
+Part I says what we are building and in what order. Part II says how it is actually done within the budget. Every number marked **(ref)** is someone else's measurement and is a placeholder until our trial replaces it; every number marked **(proposed)** is a starting value the owner must confirm before it is used as a gate. The formulas are the durable part.
+
+## 23. The budget constraint, stated once
+
+**OWNER CONSTRAINT:** the hardware budget buys **one DGX Spark**. Everything else must already exist or cost almost nothing.
+
+| Allowed | Not available |
+|---|---|
+| One Spark (engine): serving, training, evaluation, verifier, storage | A second GPU or second Spark |
+| The existing HP laptop as the lab (RAM upgrade £35–55) | Recurring cloud compute after the ~$20 trial |
+| Free, open-source software and open model weights | Paid model APIs (also forbidden as judges by design) |
+| Backup disk, network bits (~£150) | Paid datasets or labelling services |
+
+Three consequences shape the whole recipe:
+1. **One thing at a time.** Serving and training cannot overlap on one GPU with shared memory. The day is time-sliced (§24).
+2. **Volume is the scarce resource.** The model learns only from verified attempts, and one Spark makes a limited number per day. Every design choice is judged by verified wins per token.
+3. **The lab laptop, not the Spark, limits target supply.** Light container targets run in dozens; a Windows or AD environment runs one at a time. The optional 64 GB lab mini-PC (£150–300) is the only later hardware request, and only when heavy domains begin. Without it they still run — more slowly.
+
+## 24. The daily rhythm
+
+| Window | Hours (proposed) | What runs on the Spark |
+|---|---|---|
+| Day | 16 | Serving: agents attempt lab scenarios; verifier scores them; Loop A updates strategy |
+| Night | 6 | Training (when a round is ready) or sealed evaluation of a candidate |
+| Morning | 2 | Gate: read the logs, compare with the anchor, human approves or rejects |
+
+Training does not happen every night. A generation is trained only when a round's worth of verified, diverse data exists (§27); other nights serve or evaluate.
+
+## 25. The compute budget — the arithmetic that governs everything
+
+**Serving (experience generation).**
+
+> attempts per day = (output tokens/sec × serving seconds per day) ÷ output tokens per attempt
+> verified unique wins per day = attempts × success rate × share surviving the diversity cap
+
+Worked example with reference numbers — *replace with our trial's figures*:
+
+| Input | Easy/medium tasks | Hard, long-context tasks |
+|---|---|---|
+| Batched output rate | 300 tok/s (ref) | ~150 tok/s (ref: decode falls with context) |
+| Serving time | 16 h = 57,600 s | same |
+| Output tokens per day | ≈ 17 million | ≈ 8.6 million |
+| Output tokens per attempt (12 actions) | ~3,600 without reasoning traces; ~11,000 with (estimate) | ~8,000 / ~25,000 (estimate) |
+| Attempts per day | ≈ 4,800 / ≈ 1,600 | ≈ 1,100 / ≈ 350 |
+| At 10% success, half surviving the cap | ≈ 240 / ≈ 80 wins | ≈ 55 / ≈ 17 wins |
+
+What this tells us before spending anything:
+- **The 300-wins/day floor is reachable only on easy and medium tasks, and only narrowly.** On hard tasks one Spark yields tens of wins a day. This matches the earlier briefs' warning and makes the **~100-trajectory pilot rule the realistic route to the first generation** (§7.8).
+- **Reasoning traces cost roughly three times the volume.** The Instruct-vs-Thinking decision (D-2) is a volume decision as much as a quality one.
+- **Success rate is the strongest lever we control** — through curriculum difficulty (§8) and Loop A — because it multiplies everything else.
+- Prompt (input) tokens are processed much faster than output tokens and prefix caching removes most repeats, but long contexts still shrink how many agents fit at once (§5.2).
+
+**Training.**
+
+> training hours = (examples × average tokens per example × epochs) ÷ training tokens/sec ÷ 3,600
+
+| Round | Tokens | At 450 tok/s (ref, stock) | At 3,460 tok/s (ref, optimised) |
+|---|---|---|---|
+| Pilot: 100 examples × 6,000 tokens × 3 epochs | 1.8 M | ≈ 1.1 h | ≈ 9 min |
+| Small: 600 × 6,000 × 2 | 7.2 M | ≈ 4.4 h (one night) | ≈ 35 min |
+| Full: 2,400 × 6,000 × 2 | 28.8 M | ≈ 18 h (three nights or a weekend) | ≈ 2.3 h |
+
+The trial's `stage1_baseline.md` gives our real rate; `summarise_trial.py --round-tokens` does this sum. **A pilot fits in one evening even on the slow path** — so the first generation does not wait on training optimisation, while the 3-day cadence at full volume does.
+
+**Evaluation.** 200 sealed tasks × 2 models (base and candidate) × ~4,000 output tokens ≈ 1.6 M tokens ≈ 1.5 h (ref). One night comfortably holds an evaluation.
+
+**Memory.** Serving reserves most of the 128 GB for the model (~31 GB) and its cache, so nothing else uses the GPU while serving. 4-bit QLoRA training needs ~17 GB of weights plus working memory that grows with sequence length; bf16 needs ~61 GB of weights. Both fit only when the server is stopped — which the lifecycle already enforces.
+
+**Storage (4 TB).** Models ≈ 92 GB per variant; each adapter is hundreds of megabytes; trajectories are text. Keep every log and golden anchor forever; keep the latest 10–20 adapters; prune old intermediate datasets only behind a trusted anchor.
+
+## 26. Producing experience — the agent loop and the scenarios
+
+- **Agent loop:** think → choose one allowed tool action → observe → adjust, with a hard action cap and context budget per attempt (8–16K for most; longer only for hard tasks). Actions are structured output checked against an allow-list before anything reaches the lab; every step is logged with provenance.
+- **Scenario supply is the true bottleneck, and it is human-paced.** Volume and diversity come from *scenario families*: independently implemented targets, each with seeded variation (different routes, roles, data, configuration), each with its assurance contract (§8). A new hostname or seed alone is not a new skill.
+- **Reaching the volume honestly** (restored from v1.1): (1) many parallel light containers with varied configurations; (2) difficulty kept winnable-but-hard; (3) count defensive wins too — they are cheaper to produce and verify; (4) the diversity cap enforced in code — once a family reaches its share, further wins are logged but held out of training; (5) on a shortfall, wait or run a smaller round flagged under-volume — never pad.
+- **Refusals** (restored from v1.1): a safety-tuned model may decline offensive lab tasks. Handle in this order, without a stripped model: state the authorised-lab context → domain fine-tuning (the real fix) → prefer the base/thinking variant and instruction tuning → only then a light, targeted anti-refusal fine-tune — legitimate because the enforced scope gate, not the model's reluctance, is what keeps behaviour safe. Record refusal rate as a metric from the first run.
+- **Loop A runs every day:** prompts, strategies and verified facts improve continuously and raise the success rate that §25 depends on.
+
+## 27. The data recipe
+
+1. **Only verified wins become training examples**, plus verified *corrections* of failures. Failed and unverifiable attempts are kept for analysis, never trained on.
+2. **One example** = the scenario brief, the sequence of observations and actions that led to the verified outcome, and the paired defensive step where one exists — in the model's chat format.
+3. **Train on what the agent wrote, not on what the environment said.** The loss covers the agent's own turns; observations are context. (The trial's smoke run does not mask this way; production must.)
+4. **Every round contains:** new verified wins; **seed replay** of earlier verified data (proposed 20–30%) so old skills are not forgotten; general-ability canary material kept out of training for testing only.
+5. **Deduplicate by scenario family and behaviour**, not by exact text. Cap any one family at 15% of the round.
+6. **Screen anything external** as untrusted; never train directly on unvetted public data.
+7. **Splits are fixed by family before training:** train / development / sealed. Tuning uses development only. The sealed set is never looked at during development.
+8. Every dataset version is hashed and recorded with its composition.
+
+## 28. The training recipe
+
+- **Method:** LoRA on the frozen MoE with the router frozen; 4-bit QLoRA by default (§7.4). Start from `configs/training.yaml`: rank 16, alpha 32, learning rate 2e-4, linear schedule, attention and expert projections as targets.
+- **First run is the pilot:** ~100 verified examples, 2–3 epochs, short sequences. Its job is to prove the loop end to end and to test the pilot rule — not to be good.
+- **Watch while training:** training loss and development loss together (loss falling while development stalls = overfitting → stop early); gradient norm; expert-load balance and dead experts; refusal rate. Stop on any non-finite value.
+- **Change one thing at a time** between runs, with a new run identifier, and record why.
+- **If the MoE misbehaves** (unstable loss, expert collapse, canaries dropping): lower the learning rate → confirm the router is frozen → restrict targets to attention only → add clipping and warm-up. Smaller first runs on the same model replace the removed dense fallback.
+- **GRPO only after an SFT generation has beaten the base** on the sealed set. Rewards come only from the assured verifier.
+
+## 29. The evaluation and promotion recipe
+
+- **Sealed set (proposed):** at least 200 web tasks across at least 10 scenario families the model has never trained on, mixing offensive, detection and remediation tasks, with patched and pre-satisfied controls. Below roughly 200 paired tasks a real 10-point improvement cannot be told from luck.
+- **Comparison is paired:** base and candidate attempt the same tasks under the same settings; report the paired test, the confidence interval, and results per family (one family improving does not make a general gain).
+- **Canaries:** a fixed general reasoning and coding set; a drop means the model is forgetting.
+- **Promotion gate (proposed, to be pre-registered by the owner before the first evaluation):** candidate beats base on the sealed set with a paired test at p < 0.05 **and** no critical category regresses **and** false-positive rate is no worse **and** canaries fall by no more than 2 points **and** the owner approves. No LLM takes part in any of it.
+- **Every use of the sealed set is recorded** in the acceptance ledger with the model identity. A set that has been used many times is no longer sealed; retire and replace it.
+
+## 30. Serving the result
+
+Preferred: the adapter served on the FP8 model (personas as adapters). If the trial shows that does not work correctly: merge the adapter into the full-precision weights and serve those, or merge and re-quantise to FP8 on the Spark. Choose by measured correctness first, then speed. Whichever path is chosen becomes part of the reviewed freeze.
+
+## 31. When it is not learning — the diagnosis table (restored from v1.1)
+
+| Symptom | Likely cause | First action |
+|---|---|---|
+| Training loss falls, benchmark flat | Overfitting or too little diverse data | Fewer epochs; check family shares; more seed replay |
+| Loss unstable | Learning rate or router drift | Lower the rate; confirm router frozen |
+| Expert-load collapse | MoE routing disturbed | Freeze/verify router; restrict targets |
+| Benchmark drops right after a new data source or curriculum change | Data or curriculum, not the model | Revert that one change; re-run |
+| Security score up, canaries down | Forgetting | More seed replay; lower rate; shorter run |
+| Everything looks fine but scores are wrong | **The verifier** | Re-run the assurance suite before anything else |
+| Verified/failed ratio jumps overnight | Verifier bug or data shift | Quarantine the day's data; audit |
+| False positives rising | Reward shaping | Check the false-positive penalty |
+
+Always compare a bad generation with the last golden anchor, roll back to the anchor, fix the one cause, and resume. Change external things one at a time.
+
+## 32. The path to the model, in order — the checklist
+
+1. **Trial** on the rented GB10; get our real serving and training rates; decide the purchase (Stage 1A).
+2. **Re-run on the owned Spark**; connect the lab laptop (Stage 1B).
+3. **Build the sealed web set first**, then the verifier service with its assurance suite (Stage 2A).
+4. **Build 10+ web scenario families** and the agent loop; start Loop A.
+5. **Compare Instruct and Thinking** on real tasks; pick one by wins per token (D-2).
+6. **Measure wins per day** honestly (Stage 1.5); put our numbers into §25.
+7. **Run the pilot:** ~100 verified examples → train → paired evaluation on the sealed set.
+8. If the pilot beats the base: lower the bar per the pre-registered rule and run generation 2 on more data. If not: diagnose with §31, improve scenario diversity and success rate, try again within the D-3 rule.
+9. **Promote only through the gate** (§29); register the generation; keep the anchor.
+10. Only then: GRPO, the population, and the next domain — each new domain verifier-first.
+
+**What this recipe can honestly deliver on one Spark:** a model that is measurably better than its base at the security tasks our lab can verify, improving in steps as the lab and verifier grow. Not general frontier reasoning, not unsupervised discovery of new attack classes, and not six mature domains by mid-2027.
+
+## 33. Where the risk really is
+
+| Risk | Why it matters on one Spark | What we do |
+|---|---|---|
+| Too few verified wins | Learning rate equals experience rate | Pilot rule; success-rate work; defensive wins; more families |
+| Scenario building is slow | It is human-paced and solo | Web only until the proof; reuse family templates |
+| A weak or leaky sealed set | Every claim rests on it | Build it first; enough tasks; ledger; retire when worn |
+| Adapter serving fails on FP8 | Blocks deployment | Decision tree in §30, settled by the trial |
+| 4-bit training fails on GB10 | Blocks the default method | bf16 fallback already wired |
+| A confidently wrong verifier | Poisons everything silently | Assurance suite on every change; dual checks |
+| Dates versus labour | One builder | Deliverables defined by evidence, not promises (D-5, D-6) |
+
+---
+
+*End of v1.5. The verifier is the foundation, and its own correctness is assured, not assumed. Loop B is the goal, switched on by measured volume, not hope. Offensive-led in training, contained by design, honest in claim. The hardware is bought on evidence from our own run — and until that run happens, everything here is preparation.*
