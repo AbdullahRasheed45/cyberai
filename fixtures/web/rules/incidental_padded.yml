@@ -1,0 +1,13 @@
+title: incidental SourceIp padded with an always-true behavioural condition
+logsource:
+  category: web_request
+detection:
+  sel_pad:
+    UserAgent|contains: ""
+  sel_ip1:
+    SourceIp: '10.0.0.5'
+  sel_ip2:
+    SourceIp: '10.0.0.6'
+  sel_ip3:
+    SourceIp: '10.0.0.7'
+  condition: sel_pad and (sel_ip1 or sel_ip2 or sel_ip3)

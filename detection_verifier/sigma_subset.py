@@ -260,6 +260,15 @@ class FieldCond:
                 return True
         return False
 
+    def matches_blind(self, event: dict[str, Any], blind_fields: frozenset) -> bool:
+        """Like matches(), but a condition on a BLINDED field (incidental, by the
+        caller's choice) always evaluates True — never restrictive, never
+        contributing coverage. Used to test whether a rule's pass/fail is
+        actually attributable to the fields it is allowed to key on alone."""
+        if self.field_name in blind_fields:
+            return True
+        return self.matches(event)
+
 
 @dataclass
 class Selection:
@@ -268,6 +277,9 @@ class Selection:
 
     def matches(self, event):  # AND across fields
         return all(c.matches(event) for c in self.conds)
+
+    def matches_blind(self, event, blind_fields: frozenset) -> bool:
+        return all(c.matches_blind(event, blind_fields) for c in self.conds)
 
 
 @dataclass
@@ -292,6 +304,15 @@ class Rule:
         # no work and cannot contribute cost or semantics.
         ref = self.referenced_selections()
         res = {n: self.selections[n].matches(event) for n in ref}
+        return _eval_ast(self.condition_ast, res)
+
+    def evaluate_blind(self, event, blind_fields: frozenset) -> bool:
+        """Evaluate with every condition on a blinded field forced True (Astra
+        finding 9): exposes whether the rule's own verdict actually depends on
+        fields outside `blind_fields` — i.e. whether its apparent discrimination
+        is attributable to behavior rather than to an incidental identifier."""
+        ref = self.referenced_selections()
+        res = {n: self.selections[n].matches_blind(event, blind_fields) for n in ref}
         return _eval_ast(self.condition_ast, res)
 
 
@@ -392,18 +413,25 @@ def parse_rule(doc: Any, allowed_fields: set[str], category: str = "process_crea
     return Rule(title, selections, ast, set(allowed_fields))
 
 
-def evaluate_over(rule: Rule, events: list, deadline_abs: float) -> list[bool]:
+def evaluate_over(
+    rule: Rule, events: list, deadline_abs: float, *, blind_fields: frozenset = frozenset()
+) -> list[bool]:
     """Evaluate a rule over a corpus under ONE absolute monotonic deadline shared
     across the whole candidate (caller computes it once). Checks the clock BEFORE
     and AFTER each event's work, so an event that pushes past the deadline is
     caught (a cooperative check cannot interrupt a single in-flight event — that
     is what the OS-enforced isolation worker in isolation.py is for).
+
+    `blind_fields` (Astra finding 9): when non-empty, every condition on one of
+    these fields is forced to match (see Rule.evaluate_blind) instead of being
+    evaluated for real. Pass a schema's incidental fields to measure whether the
+    rule's verdict survives losing the ability to key on them.
     """
     out = []
     for i, ev in enumerate(events):
         if time.monotonic() > deadline_abs:
             raise RuleExecutionError(f"overall evaluation deadline exceeded before event {i}")
-        out.append(rule.evaluate(ev))
+        out.append(rule.evaluate_blind(ev, blind_fields) if blind_fields else rule.evaluate(ev))
         if time.monotonic() > deadline_abs:
             raise RuleExecutionError(f"overall evaluation deadline exceeded after event {i}")
     return out

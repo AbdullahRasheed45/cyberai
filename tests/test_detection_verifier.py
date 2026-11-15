@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 
 import pytest
@@ -417,6 +418,83 @@ def test_metamorphic_incidentals_preserve_verdict(corpora):
         mutated.append(e)
     v = check_rule(_rule("good.yml"), mutated, absent, out_of_scope=oos)
     assert v.metrics.coverage == 1.0
+
+
+# --- Astra finding 9: incidental-field padding of a trivially-true behavioural
+# condition must not launder an identity-keyed rule into VERIFIED -------------
+
+
+def test_behavioral_field_reference_alone_is_not_enough():
+    """has_behavioral_field only checks that a behavioural field is referenced.
+    A rule can AND that in as a no-op (true for every record) while an OR of
+    incidental, per-record identifiers (unique to the positives, absent from
+    the negatives) does all the real separating. Reproduced directly: coverage
+    and fp_burden look perfect; the rule must still be rejected."""
+    present = [
+        {"Image": "x.exe", "CommandLine": "x --go", "User": "r-001"},
+        {"Image": "y.exe", "CommandLine": "y --go", "User": "r-002"},
+    ]
+    absent = [
+        {"Image": "z.exe", "CommandLine": "z --go", "User": "r-101"},
+        {"Image": "w.exe", "CommandLine": "w --go", "User": "r-102"},
+    ]
+    rule = {
+        "title": "incidental User padded with an always-true Image condition",
+        "logsource": {"category": "process_creation"},
+        "detection": {
+            "sel_pad": {"Image|contains": ""},  # matches every record; no discrimination
+            "sel_id1": {"User": "r-001"},
+            "sel_id2": {"User": "r-002"},
+            "condition": "sel_pad and (sel_id1 or sel_id2)",
+        },
+    }
+    v = check_rule(rule, present, absent)
+    assert v.metrics.has_behavioral_field is True  # the old, insufficient check passes
+    assert v.metrics.coverage == 1.0 and v.metrics.fp_burden == 0.0  # looks clean
+    assert v.metrics.behavior_attributable is False  # blinding User exposes the cheat
+    assert v.metrics.fp_burden_incidental_blind == 1.0  # Image|contains:"" matches everyone
+    assert v.outcome == "FAILED"
+    assert any("incidental-dependent" in r for r in v.metrics.reasons)
+
+
+def test_blinding_incidental_fields_never_rejects_a_genuinely_behavioural_rule(corpora):
+    """The ablation must not create false positives: a rule that references an
+    incidental field only as EXTRA narrowing on top of sufficient behavioural
+    discrimination (the behaviour alone already clears cmin/fpmax) still
+    verifies, because blinding a condition can only make it MORE permissive."""
+    pres, absent, _ = corpora
+    rule_doc = yaml.safe_load((RULES / "good.yml").read_text(encoding="utf-8"))
+    rule_doc["detection"]["sel_extra_incidental"] = {"User": pres[0]["User"]}
+    rule_doc["detection"]["condition"] = (
+        f"({rule_doc['detection']['condition']}) and sel_extra_incidental"
+    )
+    # This narrows coverage to just the one matching record (as real rules can),
+    # but it must still be VERIFIED if that narrowed coverage clears cmin, and
+    # must never be rejected merely for referencing an incidental field at all.
+    v = check_rule(rule_doc, pres[:1], absent, cmin=1.0)
+    assert v.outcome == "VERIFIED", v.metrics.reasons
+    assert v.metrics.behavior_attributable is True
+
+
+def test_evaluate_over_blind_fields_forces_incidental_conditions_true():
+    """Unit-level check of the primitive itself (sigma_subset.evaluate_over),
+    independent of check_rule's wiring."""
+    from detection_verifier.sigma_subset import evaluate_over
+
+    rule = parse_rule(
+        {
+            "title": "t",
+            "logsource": {"category": "process_creation"},
+            "detection": {"sel": {"User": "only-this-one"}, "condition": "sel"},
+        },
+        allowed_fields={"User"},
+    )
+    events = [{"User": "only-this-one"}, {"User": "someone-else"}]
+    deadline = time.monotonic() + 5.0
+    normal = evaluate_over(rule, events, deadline)
+    blind = evaluate_over(rule, events, deadline, blind_fields=frozenset({"User"}))
+    assert normal == [True, False]  # the real, identity-keyed behaviour
+    assert blind == [True, True]  # blinding User makes the condition a no-op
 
 
 # --- assurance ---------------------------------------------------------------

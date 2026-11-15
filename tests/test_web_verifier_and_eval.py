@@ -66,10 +66,35 @@ def test_overfit_rule_passes_train_but_fails_challenge(splits):
     assert held.metrics.coverage < train.coverage  # demonstrable generalization gap
 
 
-@pytest.mark.parametrize("rule_file", ["trivial.yml", "incidental_only.yml"])
+@pytest.mark.parametrize(
+    "rule_file", ["trivial.yml", "incidental_only.yml", "incidental_padded.yml"]
+)
 def test_crude_rules_fail(splits, rule_file):
     r = score_rule_on_split(_rule(rule_file), splits["challenge"], WEB_REQUEST_SCHEMA)
     assert r.outcome != "VERIFIED", (rule_file, r.as_dict())
+
+
+def test_incidental_padding_cannot_launder_a_constant_behavioural_field(splits):
+    """Astra finding 9, confirmed by reproduction: has_behavioral_field only
+    checked that a behavioural field was REFERENCED, not that it did any
+    discriminating work. This rule ANDs a trivially-true behavioural condition
+    (UserAgent|contains: "") with an OR of incidental SourceIps unique to the
+    TRAIN positives. Before the fix it was VERIFIED on train (coverage=1.0,
+    fp_burden=0.0 — it looked clean). It must now fail there, specifically
+    because blinding the incidental fields raises fp_burden above fpmax, not
+    for some unrelated reason — and it must fail on every split, including
+    where it has no coverage at all (train-specific identifiers don't recur)."""
+    rule = _rule("incidental_padded.yml")
+    train = score_rule_on_split(rule, splits["train"], WEB_REQUEST_SCHEMA)
+    assert train.metrics.has_behavioral_field is True  # the old check alone would pass this
+    assert train.metrics.coverage == 1.0 and train.metrics.fp_burden == 0.0  # looked clean
+    assert train.metrics.behavior_attributable is False  # the new check catches it
+    assert train.metrics.fp_burden_incidental_blind > 0.0
+    assert any("incidental-dependent" in reason for reason in train.metrics.reasons)
+    assert train.outcome == "FAILED"
+    for split in SPLITS:
+        r = score_rule_on_split(rule, splits[split], WEB_REQUEST_SCHEMA)
+        assert r.outcome != "VERIFIED", (split, r.as_dict())
 
 
 # --- paired-difference analysis ----------------------------------------------

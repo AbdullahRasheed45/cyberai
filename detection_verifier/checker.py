@@ -98,8 +98,10 @@ class DetectionMetrics:
     syntax_valid: bool = False
     execution_valid: bool = False
     has_behavioral_field: bool = False
+    behavior_attributable: bool = False
     coverage: float = 0.0
     fp_burden: float = 0.0
+    fp_burden_incidental_blind: float = 0.0
     tp: int = 0
     fn: int = 0
     fp: int = 0
@@ -246,6 +248,20 @@ def check_rule(
         pos_hits = evaluate_over(rule, behaviour_present, deadline_abs)
         neg_hits = evaluate_over(rule, behaviour_absent, deadline_abs)
         oos_hits = evaluate_over(rule, oos, deadline_abs) if oos else []
+        # Astra finding 9: has_behavioral_field only checks that a behavioural
+        # field is REFERENCED, not that it is doing any discriminating work. A
+        # rule can AND/OR in an incidental-field condition (e.g. a specific
+        # RequestId/SourceIp) that does all the real separating, padded with a
+        # behavioural condition that is true for every record and contributes
+        # nothing. Re-run fp_burden with every incidental-field condition
+        # forced to match (never restrictive): if the rule depends on an
+        # incidental field to keep fp_burden down, blinding that field can only
+        # raise fp_burden (True is maximally permissive) — so an increase above
+        # fpmax here proves the false-positive control was coming from identity,
+        # not behaviour, under the SAME deadline budget as the real run.
+        neg_hits_blind = evaluate_over(
+            rule, behaviour_absent, deadline_abs, blind_fields=schema.incidental
+        )
         m.execution_valid = True
     except RuleExecutionError as e:
         m.reasons.append(f"execution: {e}")
@@ -267,6 +283,8 @@ def check_rule(
     m.out_of_scope_fires = sum(oos_hits)  # reported, NOT a FP (defect #9)
     m.coverage = m.tp / len(pos_hits)
     m.fp_burden = m.fp / len(neg_hits)
+    m.fp_burden_incidental_blind = sum(neg_hits_blind) / len(neg_hits_blind)
+    m.behavior_attributable = m.fp_burden_incidental_blind <= fpmax
 
     passed = (
         m.syntax_valid
@@ -274,6 +292,7 @@ def check_rule(
         and m.has_behavioral_field
         and m.coverage >= cmin
         and m.fp_burden <= fpmax
+        and m.behavior_attributable
     )
     if not passed:
         if m.coverage < cmin:
@@ -283,5 +302,13 @@ def check_rule(
         if m.fp_burden > fpmax:
             m.reasons.append(
                 f"fp_burden {m.fp_burden:.2f} ({m.fp}/{m.n_behaviour_absent}) > FPmax {fpmax:.2f}"
+            )
+        if not m.behavior_attributable:
+            m.reasons.append(
+                f"incidental-dependent: fp_burden rises to "
+                f"{m.fp_burden_incidental_blind:.2f} > FPmax {fpmax:.2f} once incidental "
+                f"fields {sorted(schema.incidental)} are blinded — the rule's false-positive "
+                "control depends on an incidental identifier, not genuine behavioural "
+                "discrimination (Astra finding 9)"
             )
     return Verdict("VERIFIED" if passed else "FAILED", m, verifier_name=vname)
