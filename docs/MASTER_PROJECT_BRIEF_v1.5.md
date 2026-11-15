@@ -3,33 +3,34 @@
 **Version:** 1.5 (consolidated, self-contained)
 **Date:** 2026-11-15
 **Supersedes:** v1.4 (same day) and v1.3 as the single current brief. v1.1–v1.3 are kept in `docs/` as history.
-**Structure:** **Part I** (§0–§22) — what we are building, the decisions, the true status and every stage. **Part II** (§23–§33) — the recipe: how one Spark actually produces the model, with the compute budget, data, training and evaluation recipes, and the order of work.
+**Structure:** **Part I** (§0–§22) — the system, the decisions and the true status. **Part II** (§23–§33) — the recipe for one training generation on one Spark: compute budget, data, training, evaluation. **Part III** (§34–§47) — building the whole system: how repeated fine-tuning on the Spark produces every part of it, each stage explained in detail, and the realistic calendar.
 **Status of this document:** prepared for owner sign-off. Where it records an owner decision it says so and cites the decision log; where something is unresolved it is marked **OPEN**. Nothing here claims a result that has not been produced.
 
 **The one-paragraph position.** We are turning an open-weight model (Qwen3-30B-A3B) into a cybersecurity specialist that improves its own weights only from machine-verified experience. The design has not changed since v1.2. What has changed is that the repository now contains a tested, end-to-end *trial pipeline* for the hardware decision, a narrow assured verifier, and a first owned-lab workflow — and **nothing has yet run on a GPU**. The next step is a single authorised ~24-hour trial on a rented GB10; its measured results decide the ~£5k DGX Spark purchase.
 
 **What changed in v1.5 (over v1.4)**
+- **Part III added** — how the *complete* system in all the briefs (agent population, both loops, six domains, defence, recovery) is reached by repeated training on the Spark: the generation ladder (§34), every stage in depth (§35–§45), and a realistic calendar that keeps the owner's two target dates and says what each can honestly hold (§47).
 - **Part II added** — v1.4 said what and in what order but not *how* on a Spark-only budget. Part II supplies the daily rhythm, the compute arithmetic, and the data, training, evaluation and serving recipes.
 - **Working material restored from v1.1** that v1.4 had dropped: refusal handling, the measures for reaching win volume, the diagnosis table, coverage measurement, retention rules.
 - **The Spark-only budget stated as a governing constraint** (§23) with its consequences.
 
 **What changed in v1.4**
 1. **Owner decisions folded in:** Qwen3-30B-A3B MoE **only** (dense fallback removed); **4-bit QLoRA** is the training default with bf16 as a measured comparison; the trial runs on **Enverge** (a sandboxed container, not bare metal); product-only scope; delivery targets 15 January 2027 and 30 June 2027.
-2. **Status made true to the code** (§17A): every "built" claim was checked against the repository. Two v1.3 claims are corrected — the web evaluation is *not* generator-disjoint, and the planned `benchmark.py` became a different, larger thing (§2.6).
+2. **Status made true to the code** (§17): every "built" claim was checked against the repository. Two v1.3 claims are corrected — the web evaluation is *not* generator-disjoint, and the planned `benchmark.py` became a different, larger thing (§2.6).
 3. **The trial is specified end to end** (§2.5–2.7, §21): what runs, what is measured, what decides the purchase, and what the trial cannot tell us.
-4. **Every stage (0–6) written out** with goal, entry condition, work and definition of done (§17), **nine recommended changes** to carry the project forward (§0.1), and a single list of every open decision with its owner (§19).
+4. **Every stage (0–6) written out** with goal, entry condition, work and definition of done (now Part III), **nine recommended changes** to carry the project forward (§0.1), and a single list of every open decision with its owner (§19).
 
 ## 0.1 Recommended changes to carry the project forward
 
-These are the author's recommendations after auditing the repository against the earlier briefs. They are applied in the roadmap (§17) and marked **[REC-n]**. Each needs owner approval, and none removes a gate.
+These are the author's recommendations after auditing the repository against the earlier briefs. They are applied in the stages (Part III). Each needs owner approval, and none removes a gate.
 
 | # | Recommendation | Why |
 |---|---|---|
 | REC-1 | **Split Stage 2 and move its first half before the measurement gate.** The order becomes 1A → 1B → 2A (verifier, sealed set, agent loop) → 1.5 (measure) → 2B (first generation). Build the **sealed web acceptance set first** | The original order measured verified wins/day before the verifier, agent loop and benchmark it depends on existed — circular. It also left "verifier-first" without a sealed set, which blocks every learning claim |
 | REC-2 | **Split Stage 1 into 1A (hardware trial on a rental) and 1B (lab foundation on owned hardware)** | Different entry conditions, costs and owners; the purchase decision sits between them |
 | REC-3 | **Add an explicit adapter-serving decision after the trial** (adapter on FP8, merged weights, or unquantised serving) | Adapter-on-quantised-MoE serving is unproven anywhere; the plan must not assume it |
-| REC-4 | **Define the 15 January deliverable as a measured comparison, not a promised gain** | A gain cannot be guaranteed; an honest, verifiable deliverable can |
-| REC-5 | **Define the 30 June target by per-domain depth** | Six domains at depth conflicts with the labour estimates; breadth at Levels 1–2 with verifiers is achievable and keeps the six-domain direction |
+| REC-4 | **Keep 15 January 2027 and define it as G1, the pilot generation, with a preliminary measured comparison** (§40, §47); the confirmed proof is end of April | A gain cannot be guaranteed and a small first exam cannot confirm one; a trained, served, compared adapter by that date is achievable |
+| REC-5 | **Keep 30 June 2027 as a milestone but define it honestly:** web attack and defence, Linux at Levels 1–2, the other four domains specified. Six trained domains: end of 2028 (§47) | No domain may train before its verifier exists, and Windows, AD and mobile each need a heavy lab; six domains by June is not achievable by one builder on one Spark |
 | REC-6 | **Adopt heavy infrastructure only when a stage needs it** (the registry starts as hashed, immutable directories; MLflow and PostgreSQL later) | Unused dependencies were already removed; less surface before the proof |
 | REC-7 | **Replace the year-long parking rule with diagnose-and-suspend-promotion** (§7.8, D-3) | The park contradicts the January commitment; suspension keeps the safety intent |
 | REC-8 | **Give the removed dense model's debugging role to small first runs on the same MoE**, with bf16 as the precision fallback | The dense fallback is gone by owner decision; its "forgiving first baseline" role still needs an answer |
@@ -37,7 +38,7 @@ These are the author's recommendations after auditing the repository against the
 
 Markers: **DECISION** (settled, with reasoning) · **OWNER DECISION** (settled by the owner on the date given) · **OPEN** (unsettled) · **HONEST LIMIT** (a permanent boundary against overclaiming) · **STATUS** (what exists today).
 
-**Document map:** §0.1 recommended changes → §0.5 cost → §1 definition → §2 hardware, trial, purchase gate → §3 failure classes → §3.5 threats to the platform → §4 model → §5 serving → §6 verifier → §7 learning engine → §8 curriculum → §9 agents → §10 speed approaches → §11 offensive/defensive + authorisation → §12 lab → §13 observability → §14 rollback → §15 capability boundaries → §16 stack and code architecture → §17 status and roadmap → §18 commercial (deferred) → §19 open decisions → §20 governance → §21 verified setup appendix → §22 document index. **Part II:** §23 budget constraint → §24 daily rhythm → §25 compute budget → §26 producing experience → §27 data → §28 training → §29 evaluation and promotion → §30 serving → §31 diagnosis → §32 the path, in order → §33 risks.
+**Document map:** §0.1 recommended changes → §0.5 cost → §1 definition → §2 hardware, trial, purchase gate → §3 failure classes → §3.5 threats to the platform → §4 model → §5 serving → §6 verifier → §7 learning engine → §8 curriculum → §9 agents → §10 speed approaches → §11 offensive/defensive + authorisation → §12 lab → §13 observability → §14 rollback → §15 capability boundaries → §16 stack and code architecture → §17 status and roadmap → §18 commercial (deferred) → §19 open decisions → §20 governance → §21 verified setup appendix → §22 document index. **Part II:** §23 budget constraint → §24 daily rhythm → §25 compute budget → §26 producing experience → §27 data → §28 training → §29 evaluation and promotion → §30 serving → §31 diagnosis → §32 the path, in order → §33 risks. **Part III:** §34 the system and the generation ladder → §35–§45 each stage in detail → §46 standing rules → §47 the realistic calendar.
 
 ---
 
@@ -51,7 +52,7 @@ Rough solo person-months: Stage 1 foundation 1–3 · Stage 1.5 gate 0.5–1 · 
 
 **Six-domain lab vs the proof.** The owner has directed that the product keeps all six domains and that their curricula be specified now. This is *inventory and infrastructure*, not *learning breadth*: the Phase-1 learning proof still gates on web only (§8, §12).
 
-**OPEN (owner) — targets vs the estimates above.** The owner's targets are a working fine-tuned model by **15 January 2027** and a six-domain product by **30 June 2027**. These are targets, not demonstrated feasibility; against the person-month estimates they are aggressive. §17 (Stage 2B) states what "working fine-tuned model" can honestly mean by January. The six-domain June target needs per-domain acceptance depth defined before it can be planned (§19 D-6).
+**OPEN (owner) — targets vs the estimates above.** The owner's targets are a working fine-tuned model by **15 January 2027** and a six-domain product by **30 June 2027**. These are targets, not demonstrated feasibility; against the person-month estimates they are aggressive. §40 and §47 state what "working fine-tuned model" can honestly mean by January. The six-domain June target needs per-domain acceptance depth defined before it can be planned (§19 D-6).
 
 ---
 
@@ -175,7 +176,7 @@ Lineage: all 16 weight-shard hashes and the full tensor index of the Unsloth cop
 The Qwen3-14B dense fallback in earlier briefs is **removed**. If the MoE path fails on the hardware, that evidence goes to the owner; an alternative model is an owner decision, never an automatic switch.
 
 ### 4.3 OPEN (owner, D-2) — Instruct vs Thinking
-Instruct-2507 does not produce reasoning traces. Earlier briefs required a *native-reasoning* model, and multi-step exploitation is reasoning-heavy. `Qwen3-30B-A3B-Thinking-2507` exists in the same family (same MoE-only decision). The planned comparison — task quality, latency and token cost on offensive and defensive tasks — has not been run, and the current pin must not be read as settling it. It belongs after the trial, at the first evaluation that has real tasks (§17, Stage 2A).
+Instruct-2507 does not produce reasoning traces. Earlier briefs required a *native-reasoning* model, and multi-step exploitation is reasoning-heavy. `Qwen3-30B-A3B-Thinking-2507` exists in the same family (same MoE-only decision). The planned comparison — task quality, latency and token cost on offensive and defensive tasks — has not been run, and the current pin must not be read as settling it. It belongs after the trial, at the first evaluation that has real tasks (§38).
 
 ### 4.4 Serving and size principle
 One shared vLLM endpoint; personas are LoRA adapters, not model copies. MoE reads far fewer bytes per token than a dense model of the same knowledge; the price is that it is fussier to fine-tune (router drift), handled by the frozen-router policy (§7.7).
@@ -362,11 +363,11 @@ The trial-era packages sit at the top level rather than inside `services/`. This
 
 ---
 
-## 17. Status and roadmap — every stage
+## 17. Status and roadmap — summary
 
-Recommended changes from §0.1 are applied below and marked **[REC-n]**. Each stage lists its goal, entry condition, work, definition of done (DoD) and state today.
+**Every stage is written out in detail in Part III (§34–§47)**, with what is built, what the Spark trains, how success is checked, what can go wrong, and realistic dates. This section is the summary.
 
-### 17A. Status at 15 November 2026
+### Status at 15 November 2026
 
 | Stage | In one line | State |
 |---|---|---|
@@ -375,156 +376,26 @@ Recommended changes from §0.1 are applied below and marked **[REC-n]**. Each st
 | 1B Lab foundation | Two-machine link, lab state machine, web targets | One target built; link not started |
 | 2A Verifier and loop | Sealed web set, verifier service, agent loop, more scenarios | Components only (§6.4) |
 | 1.5 Measurement gate | Verified wins/day vs the pre-registered bar | Not started |
-| 2B The proof | One SFT generation vs the sealed web benchmark | Not started |
-| 3–6 | Defensive, recovery, recursive engine, commercial | Not started; gated on 2B |
+| 2B The proof | First generations vs the sealed web benchmark | Not started |
+| 3–6 | Defence, recovery, recursive engine, commercial | Not started; gated on 2B |
 
 Validation of what exists: lint clean; 327 tests pass on Linux as CI runs them, plus 38 PyTorch-dependent checks run separately on CPU; the trial's container commands and the Docker setup script were rehearsed against a real Docker daemon without a GPU; preflight's checkpoint rules were checked against the real pinned model configuration. **None of this is GPU evidence.**
 
 Repository: five stacked pull requests (#8 → #11 → #10 → #13 → #15), all mergeable, awaiting owner review. The trial does not need them merged; it clones the top branch.
 
----
+### Order of work
 
-## PHASE 1 — THE PROOF
+Phase 1 (the proof): **0** pre-work (done) → **1A** hardware trial → **1B** lab foundation → **2A** verifier and loop → **1.5** measurement gate → **2B** first generations. Phase 2 (only after the proof): **3** defence and Linux → **4** recovery → **5a** population, cooperation, reinforcement learning → **5b** Windows, AD, cloud, mobile → **6** commercial (deferred).
 
-### Stage 0 — Pre-work — DONE
-**Goal:** start on a known path.
-**Delivered:** repository scaffold, frozen cross-service schemas with mandatory provenance, typed configuration, CI (lint, format, tests, no-secrets check), governance files, image and model pins.
-**Carried forward:** the sealed-benchmark harness the original plan placed here was not built; it becomes the first item of Stage 2A [REC-1].
+### Realistic dates (full table and assumptions in §47)
 
-### Stage 1A — Hardware trial on a rented GB10 — NEXT [REC-2]
-**Goal:** decide the purchase on our own measurements.
-**Entry:** the owner has written the acceptance criteria (D-1), confirmed about 200 GB of disk, rehearsed getting results off the instance, and authorised the rental.
-**Work (about 24 hours; runbooks: `OWNER_GUIDE_GB10_TRIAL.md`, `RENTAL_START_HERE.md`):**
-
-| Hours | Work | Stop condition |
-|---|---|---|
-| 0–2 | Inventory; pull images; **measure Docker settings (must be READY)**; probe images and resolve version pins; download and hash the model; preparation check | No working GPU mode, containers cannot see the checkout, or CUDA/bf16 missing → export evidence and end |
-| 2–5 | First full lifecycle (2048 tokens, batch 1, 30 steps, 4-bit QLoRA) | — |
-| 5–11 | bf16 comparison cell; then 4096- and 8192-token cells (4096 × batch 2 only with headroom) | Out of memory → record; do not retry blindly |
-| 11–15 | Review adapter-serving result; capacity benchmark sweep | — |
-| 15–19 | Representative-data run if supplied; live lab workflow only if already rehearsed | — |
-| 19–21 | One diagnosed re-run | — |
-| 21–24 | Build `stage1_baseline.md`; copy everything out; read it back off-instance; delete the instance; confirm billing stopped | — |
-
-**DoD:**
-- [ ] vLLM serves the FP8 MoE model on GB10; latency and throughput recorded.
-- [ ] LoRA training runs on the GPU (not CPU torch); tokens/sec, seconds/step and peak memory recorded for 4-bit QLoRA and for bf16.
-- [ ] Adapter saved, reloaded in a fresh process, and verified.
-- [ ] Adapter-on-FP8 serving attempted; outcome recorded either way.
-- [ ] Memory released between serving and training.
-- [ ] Evidence bundles and `stage1_baseline.md` verified on the owner's machine.
-- [ ] **Owner records BUY / DO NOT BUY / RE-TEST against D-1.**
-
-**After the trial, before anything else:** replace research claims with measured ones (`PROVENANCE.md`, `PENDING_HARDWARE_CHECKS.md`); calibrate the pre-measurement thresholds (R-007); settle precision (R-008) and the attention backend (R-005); commit a reviewed freeze with real library versions; and **decide how adapters will be served** if adapter-on-FP8 failed — merged weights or unquantised serving [REC-3].
-
-### Stage 1B — Lab foundation, on owned hardware [REC-2]
-**Goal:** a secure two-machine setup that can host targets.
-**Entry:** Spark purchased (or a second authorised rental) and the 32 GB lab laptop available.
-**Work:** re-run the Stage 1A pipeline on the owned unit (R-003); wipe and isolate the lab laptop; rehearse the existing lab worker over SSH between the two machines; WireGuard, firewalled engine → lab only; the lab state machine (target-serving XOR detonation, tunnel down during detonation — built now, used later); authorisation service with three tiers and a lab-address allow-list (external ownership proof stubbed, architecture present); web targets as resettable containers with pre-state capture.
-**DoD:**
-- [ ] The owned unit reproduces the Stage 1A results.
-- [ ] The tunnel reaches only the lab address; nothing else on the subnet.
-- [ ] A state-machine test proves the tunnel is unreachable during detonation.
-- [ ] The authorisation service denies out-of-scope and production-without-token requests.
-- [ ] Web targets start, are exercised, and revert to a known state.
-
-### Stage 2A — Verifier and loop, before any measurement or training [REC-1]
-**Goal:** everything that produces and judges experience exists and is assured before volume is measured or a model is trained.
-**Why the order changed:** the original plan measured verified wins/day (Stage 1.5) before the verifier, agent loop and sealed benchmark that the measurement depends on were built (Stage 2). That is circular. Splitting Stage 2 removes the contradiction without changing any gate.
-**Entry:** Stage 1B DoD.
-**Work, in strict order:**
-1. **Sealed web acceptance set and runner** — fresh, restricted scenarios the learning side cannot read; submit-and-score only; usage recorded in the acceptance ledger. Forgetting canaries alongside.
-2. **`verifier_service`** in the target layout, with `detection_verifier` as its core (R-011): exploitation, detection and remediation checkers for web; the full assurance suite (seed truths, planted false positives, dual-checker disagreement, versioning) passing in CI.
-3. **More web scenario families** with independent implementations, so that volume and diversity are real rather than one scenario repeated (R-006).
-4. **Agent loop** (think → tool → observe) through authorisation and the lab gateway; **trajectory store** with mandatory provenance.
-5. **Dataset builder:** dedupe, poison screen, seed replay, diversity cap enforced in code.
-6. **Model registry:** immutable generations with lineage and rollback. Start as a hash-manifested directory; adopt MLflow only when it earns its weight [REC-6].
-7. **Model comparison (D-2):** Instruct vs Thinking on real offensive and defensive tasks, scored by the verifier — quality, latency, token cost.
-
-**DoD:**
-- [ ] The assurance suite passes in CI and blocks merge when it fails.
-- [ ] The sealed set scores a candidate without the learning side reading scenarios.
-- [ ] The loop drives a full web attempt to a verified verdict, end to end, on the real model.
-- [ ] The dataset builder enforces replay, diversity cap and screening.
-- [ ] The registry stores a generation immutably; rollback restores it.
-- [ ] The model variant is chosen on evidence and recorded.
-
-### Stage 1.5 — Measurement gate
-**Goal:** measure what the rig really produces; decide Loop B against the pre-registered bar.
-**Entry:** Stage 2A DoD; owner decisions D-3 and D-4 made.
-**Work:** run the loop for a measurement window; count verified, unique, non-trivial wins/day with the diversity cap applied; compare with `configs/loopB_gate.yaml`; print the figure and a recommendation. **The owner confirms; nothing auto-decides.**
-**DoD:**
-- [ ] A measured wins/day figure is logged with its diversity statistics.
-- [ ] A recommendation against the bar is produced and owner-confirmed.
-- [ ] If volume is low, Loop A is confirmed as the working engine (a valid outcome) and the pilot rule (§7.8) governs whether a first SFT is still attempted.
-
-### Stage 2B — The proof
-**Goal:** one SFT generation measured against the sealed web benchmark.
-**Entry:** Stage 1.5 decision recorded.
-**Work:** SFT with the frozen-router policy and the settled precision, full metrics logged; promotion gate (sealed score, canaries, paired statistical test, no false-positive regression, human approval); rollback controller; web-only curriculum controller with a difficulty ratchet and free-exploration reserve; at least one full generation run. First runs are small and cheap on the same MoE — short sequences, pilot-sized data — which takes over the debugging role the removed dense model had [REC-8].
-**DoD:**
-- [ ] A generation trains with every metric logged and the run reconstructable.
-- [ ] The candidate is compared with the base model on the sealed set, with paired statistics.
-- [ ] The registry holds the generation; rollback is demonstrated.
-- [ ] **Either** the generation measurably beats the base on the sealed set, **or** the outcome is logged and the D-3 rule is applied. Both end Phase 1 honestly.
-
-**→ GATE: Phase 2 does not start until Stage 2B's DoD holds.**
-
-**The 15 January 2027 deliverable [REC-4].** Achievable and verifiable by that date: *an adapter trained on verified web-lab experience, served on the project's own stack, with a measured comparison against the base model on the sealed web set* — whatever the comparison shows. A gain cannot be promised in advance; finding out is the purpose of the gate. Owner to confirm (D-5).
-
----
-
-## PHASE 2 — BUILD-OUT (contingent on Stage 2B)
-
-Rule for every stage below: **each new domain or task class gets an assured verifier before it trains.**
-
-### Stage 3 — Controlled defensive capabilities; second domain
-**Goal:** reliably investigate and propose defensive actions, sandbox-tested, with human approval for production.
-**Entry:** Stage 2B DoD.
-**Work:** defensive tool integration in which the model interprets tool output rather than trusting it (network and endpoint monitoring); a vulnerability engine on a local CVE/KEV mirror with a prioritisation verifier; detection-engineering agents scored by the detection verifier; remediation agents scored on hole-closed-and-service-alive; incident lifecycle and evidence records; a response engine with the three policy tiers (production needs a human-signed token; the model holds no production credentials); **live ownership verification and the scope-breach playbook, before any external target**; the curriculum adds **Linux**, cumulatively.
-**DoD:**
-- [ ] Detection, remediation and prioritisation verifiers pass assurance.
-- [ ] Response tiers are enforced; a production action is impossible without a signed token.
-- [ ] Ownership verification blocks an external target lacking proof.
-- [ ] The scope-breach playbook is written.
-- [ ] A generation improves on the sealed benchmark across web + Linux with no canary regression.
-
-### Stage 4 — Recovery
-**Goal:** independently verifiable recovery.
-**Entry:** Stage 3 DoD.
-**Work:** immutable, append-only backups on credentials the AI stack cannot reach; restoration tests against snapshots; a deterministic recovery verifier (restored state equals known-good).
-**DoD:**
-- [ ] Backups are immutable and unreachable by the AI stack.
-- [ ] A restore is verified deterministically against known-good state.
-- [ ] Recovery evidence is logged and reconstructable.
-
-### Stage 5 — Recursive learning and evolution; remaining domains
-**Goal:** agent strategies and model weights both improve across evaluated generations and domains.
-**Entry:** the Stage 2B proof held. **No RL or evolution before this.**
-**Work:** an agent population with MAP-Elites; hybrid cooperation through sanctioned, logged channels with blind agents and a critic; the three speed approaches, each behind a flag and kept only if measured to help; GRPO with verifier-only rewards; full six-group logging; golden anchors with rollback and resume; a retention policy; environment versioning; the curriculum across **Windows → AD → cloud → mobile**, each cumulative and verifier-first; malware detonation activated behind the state machine. Lab hardware grows here (a 64 GB mini-PC) when heavy environments run at volume.
-**DoD:**
-- [ ] Diverse specialists are preserved (no monoculture).
-- [ ] Cooperation runs only through sanctioned, logged channels.
-- [ ] Each speed approach is measured; unhelpful ones are removed.
-- [ ] GRPO runs on verifier rewards only.
-- [ ] Every new domain has an assured verifier before training.
-- [ ] Detonation never coexists with the tunnel (tested).
-- [ ] Degrade → roll back → resume is demonstrated.
-
-**The 30 June 2027 six-domain target [REC-5].** Against the labour estimates in §0.5, six domains at depth by June is not credible for one builder. A target that is both honest and useful: *all six domains present with at least Levels 1–2 backed by assured verifiers and working lab environments, web and one further domain at Levels 3–4, and the recursive loop demonstrated on web.* Owner to set the depth (D-6).
-
-### Stage 6 — Commercial readiness (deferred; outside current scope)
-**Goal:** a deployable product.
-**Work when reopened:** tenant separation and access control; customer telemetry out of training by default; dashboard, audit and reporting; independent security testing of the platform's own threat mitigations; weights encrypted at rest with egress monitoring; install, update and support processes; insurance and accreditation before any paid external testing.
-**DoD:**
-- [ ] Tenant separation and audit trails are in place.
-- [ ] The platform's own security is independently tested.
-- [ ] Accreditation, insurance and incident response are complete before paid external engagements.
-
-### Cross-cutting, every stage
-Configuration in YAML and environment, no magic numbers · every run reproducible · assurance tests block merge · no LLM in any gate, verifier or authorisation decision · `lab/` never imports engine code; the learning engine never reads sealed scenarios · secrets only from the environment · containers only on GB10, never host-installed torch.
-
-**Phase 1 is complete** when Stage 2B's DoD holds. **Phase 2 is complete** when Stages 3–5 hold at the depth set in D-6; Stage 6 is a separate decision.
+| Date | What will honestly exist |
+|---|---|
+| 30 Nov 2026 | Trial done; purchase decided |
+| 15 Jan 2027 (owner target) | G1: a pilot adapter trained on ~100 verified web wins, with a preliminary comparison against the base |
+| end Apr 2027 | The proof: a generation that beats the base on the full sealed web set, or an honest logged result |
+| 30 Jun 2027 (owner target) | Web attack and defence; Linux Levels 1–2; the other four domains specified, not yet built |
+| Dec 2028 | All six domains trained, each measured separately |
 
 ---
 
@@ -542,8 +413,8 @@ Retained for continuity only: web is the beachhead; the leaning was lab-verified
 | D-2 | Instruct vs Thinking model, by measured comparison | Before the first real generation |
 | D-3 | Loop-B parking rule vs the January commitment (proposed amendment in §7.8) | Before Stage 1.5 |
 | D-4 | How novelty and diversity are measured for the volume bar | Before Stage 1.5 |
-| D-5 | Definition of the 15 January deliverable (§17, Stage 2B) | Now |
-| D-6 | Per-domain acceptance depth for the 30 June six-domain target | Before Stage 3 planning |
+| D-5 | Confirm the 15 January deliverable as defined in §47 | Now |
+| D-6 | Confirm the 30 June milestone as defined in §47 (or add a second builder) | Before Stage 3 planning |
 
 ### Technical unknowns the trial resolves
 Docker GPU access in the Enverge sandbox · library versions inside the pinned images · whether vLLM serves the FP8 MoE on GB10 with the pinned image and backend · whether 4-bit QLoRA runs on GB10 · whether bf16 training of the 30B base fits in unified memory alongside the OS · whether the adapter serves on the FP8 model · real throughput, memory and training rate.
@@ -670,7 +541,7 @@ Worked example with reference numbers — *replace with our trial's figures*:
 | At 10% success, half surviving the cap | ≈ 240 / ≈ 80 wins | ≈ 55 / ≈ 17 wins |
 
 What this tells us before spending anything:
-- **The 300-wins/day floor is reachable only on easy and medium tasks, and only narrowly.** On hard tasks one Spark yields tens of wins a day. This matches the earlier briefs' warning and makes the **~100-trajectory pilot rule the realistic route to the first generation** (§7.8).
+- **The 300-wins/day floor is reachable only on easy and medium tasks, and only narrowly.** On hard tasks one Spark yields tens of wins a day. This matches the earlier briefs' warning and makes the **~100-trajectory pilot rule the realistic route to the first generation** (§7.8, §40).
 - **Reasoning traces cost roughly three times the volume.** The Instruct-vs-Thinking decision (D-2) is a volume decision as much as a quality one.
 - **Success rate is the strongest lever we control** — through curriculum difficulty (§8) and Loop A — because it multiplies everything else.
 - Prompt (input) tokens are processed much faster than output tokens and prefix caching removes most repeats, but long contexts still shrink how many agents fit at once (§5.2).
@@ -774,6 +645,321 @@ Always compare a bad generation with the last golden anchor, roll back to the an
 | 4-bit training fails on GB10 | Blocks the default method | bf16 fallback already wired |
 | A confidently wrong verifier | Poisons everything silently | Assurance suite on every change; dual checks |
 | Dates versus labour | One builder | Deliverables defined by evidence, not promises (D-5, D-6) |
+
+---
+
+# PART III — BUILDING THE WHOLE SYSTEM: every phase in detail, with realistic dates
+
+Part I describes the system. Part II gives the recipe for one training generation on one Spark. Part III explains how the **complete system in all the briefs** — the agent population, both learning loops, the verifier, the curriculum, six domains, defence and recovery — is reached by repeatedly **training and fine-tuning on the Spark**, stage by stage, and when each piece can realistically exist.
+
+## 34. The complete system, and how training on the Spark produces it
+
+### 34.1 The system in one picture (in words)
+Two machines. The **Spark** holds the model, the verifier's answer keys, the training code and all records. The **lab laptop** holds the targets and nothing valuable. They talk only through a narrow, logged gateway.
+
+On the Spark, one copy of the model is served. Many **agents** — each just a saved configuration: a role, a prompt, allowed tools, a strategy — take turns using it. An agent is given a **scenario** by the **curriculum controller**, works on a lab target through the gateway, and its whole attempt is saved as a **trajectory**. The **verifier** — plain code, no AI — checks what really happened on the target and labels the attempt verified, failed, or unverifiable.
+
+Two loops then learn from this:
+- **Loop A (every day, no training):** which agent configurations, prompts and strategies work best; which verified facts are worth remembering. This makes the *same* model perform better.
+- **Loop B (every few days, training on the Spark):** verified attempts become a dataset; the Spark fine-tunes a new **generation** of the model; a **sealed benchmark** the trainer has never seen decides whether it is better; a human approves; the **registry** stores it permanently. This makes a *better* model.
+
+Around this sit the safety parts: the **authorisation gate** (what may be touched), the **lab state machine** (targets and malware never share the network path), the **candidate bank** (interesting but unprovable results wait there), and **rollback** (any generation can be restored).
+
+### 34.2 What "fine-tuning produces the system" means — the generation ladder
+The system is not built and *then* trained. Each stage adds the machinery for a new kind of verified experience, and the Spark turns that experience into the next generation of the model.
+
+| Generation | Trained in | Trained on (all verified) | Method | What it should do better than its parent |
+|---|---|---|---|---|
+| G0 | — | nothing; the base Qwen3-30B-A3B | — | Baseline. Scored on the sealed set so every later claim has a comparison |
+| G1 | Stage 2B | ~100 web lab wins (pilot) | SFT, 4-bit QLoRA | Proves the whole loop works; tests the pilot rule |
+| G2–G3 | Stage 2B | Hundreds to low thousands of web wins + replay | SFT | **The proof:** beats G0 on the sealed web set |
+| G4–G6 | Stage 3 | Web + web defence (detection, remediation, triage) + Linux, cumulative | SFT | Defence learned from the attacks; a second domain without forgetting web |
+| G7+ | Stage 5a | The same domains | SFT, then **GRPO** (reinforcement learning on verifier rewards) | Better on hard multi-step tasks where SFT plateaus |
+| later | Stage 5b | + Windows, then AD, then cloud, then mobile — each added, none removed | SFT + GRPO | One model competent across domains, measured per domain |
+
+Rules that hold for every generation:
+- **Training data is verified wins only**, plus replay of earlier verified data. Nothing the model merely claimed.
+- **Recommended default: each generation is a fresh adapter trained from the base model on the cumulative curated dataset** (new wins plus a sampled replay of old ones). This keeps generations independent and reproducible and stops small errors compounding. Continuing from the previous adapter is the cheaper alternative once data is large; choose by measured result, one change at a time.
+- **Round size is capped to what fits the night window** (§25); replay is sampled, not the whole history.
+- **One main adapter per generation.** "Personas" are agent configurations first (Loop A). Separate role adapters are an optional later refinement, tried only if a measured gain justifies the extra training time.
+- **A generation is never served to the agents until the gate passes and a human approves.** Once promoted, the agents use it — so the next round of experience comes from a stronger model. That is the recursion.
+
+### 34.3 How the pieces map to the stages
+
+| Piece of the system | Built in | First trained/used |
+|---|---|---|
+| Serving, training path, measurements | 1A | 1A (smoke only) |
+| Two-machine link, lab state machine, authorisation tiers | 1B | 2A |
+| Sealed benchmark, verifier service, assurance | 2A | 2A |
+| Agent loop, trajectory store, dataset builder, registry | 2A | 2B |
+| Curriculum controller (web) | 2B | 2B |
+| Loop B: SFT, promotion gate, rollback | 2B | 2B |
+| Defensive verifiers and tools; second domain; live ownership checks | 3 | 3 |
+| Recovery verifier and immutable backups | 4 | 4 |
+| Agent population (MAP-Elites), cooperation, speed approaches, GRPO | 5a | 5a |
+| Windows, AD, cloud, mobile; malware detonation | 5b | 5b |
+| Multi-tenant product, dashboard, accreditation | 6 | — |
+
+---
+
+## 35. Stage 0 — Pre-work (DONE)
+**In plain words:** get organised so later work starts on firm ground.
+**What exists:** the repository, shared data definitions with mandatory provenance, validated configuration files, automated checks on every change, the decision log, and exact pins for the model and container images.
+**Left over:** the sealed-benchmark harness planned here was not built; it is the first task of Stage 2A.
+
+## 36. Stage 1A — The hardware trial on a rented GB10 (NEXT)
+**In plain words:** before paying ~£5,000, rent the same machine for a day and run the real cycle on it: load the model, answer questions, train a small add-on, reload it, deploy it, and save every measurement.
+
+**Starts when:** the owner has written what "good enough" means (D-1), confirmed ~200 GB of disk with Enverge, tested copying a file off the instance, and booked the rental.
+
+**What the Spark-class machine does here:** *serving* the FP8 model and measuring speed; *training* a small LoRA adapter twice (4-bit QLoRA, then bf16) to measure tokens per second and memory; *serving again* with the adapter attached. This is plumbing and measurement, not learning — the data is seven short examples.
+
+**How it is done, step by step:**
+1. Connect; inventory the machine; clone the trial branch.
+2. Pull the two pinned container images.
+3. Run the Docker setup script. Enverge's session is a locked-down container where the usual GPU flag fails, so the script finds the flags that work and saves them. It must say READY.
+4. Probe the images for their real library versions; these replace the deliberate `FILL` placeholders in a reviewed copy of the freeze file.
+5. Download the serving model and verify every file against the pinned fingerprint.
+6. Start the live tracker; run the full lifecycle once under it (preflight → serve → measure → release memory → train → reload → serve with adapter → workload → export).
+7. Run the bf16 comparison, then longer-sequence training cells; run the capacity benchmark.
+8. Build the one-page baseline report; copy everything to your own machine; read it back; delete the instance; confirm billing stopped.
+
+**How we know it worked:** the serving and training numbers exist for *our* run; the adapter reloads and its tensors match; memory is released between phases; the adapter-on-FP8 result is recorded either way; the evidence opens on your laptop; you record BUY, DO NOT BUY or RE-TEST.
+
+**What can go wrong → what we do:**
+- No GPU inside containers, or containers cannot see the project folder → stop in the first hour, keep the report, raise with Enverge. Cheap failure.
+- vLLM cannot serve the FP8 MoE on this image → try the documented fallback image; if that fails it is a purchase-blocking finding.
+- 4-bit training fails (the bitsandbytes library on this chip) → the bf16 run is the fallback and becomes the default if it fits and is fast enough.
+- The adapter will not serve on the FP8 model → not purchase-blocking; decide between merged-weight and unquantised serving afterwards (§30).
+
+**Effort and realistic date:** one day on the machine, a few days of preparation. **Realistic: completed by 30 November 2026**, if booked in the next two weeks.
+
+**Hands over:** our real tokens-per-second for serving and training (these replace every reference figure in §25), a reviewed freeze with real versions, and the purchase decision.
+
+## 37. Stage 1B — Lab foundation on the owned Spark
+**In plain words:** set up the two real machines so the model can safely practise on targets.
+
+**Starts when:** the Spark has arrived (UK stock; allow about a week) and the lab laptop has its 32 GB.
+
+**What the Spark does here:** repeats the Stage 1A lifecycle on the owned unit — its system image may differ from the rental, so nothing is assumed to carry over — then serves the base model for the first lab rehearsals.
+
+**What gets built, and why:**
+- **Clean, isolated lab laptop:** wiped, fresh system, containers enabled, off the home network. Targets are deliberately vulnerable; they must not sit near anything valuable.
+- **The private link (WireGuard):** an encrypted tunnel whose firewall lets the Spark reach one lab address and nothing else.
+- **The lab gateway:** the single door into the lab. It accepts only defined requests, logs all of them, and refuses anything while the lab is in malware mode.
+- **The lab state machine:** two modes — *serving targets* or *detonating malware* — that can never be on together, enforced in code with the tunnel down during detonation. Built now, even though malware work is Stage 5, so the safety boundary exists before it is needed.
+- **The authorisation service:** three levels — read-only (automatic), sandbox (automatic inside the lab), production (needs a human-signed token). Lab addresses are owned by definition; the proof-of-ownership mechanism for outside targets is designed in but switched on in Stage 3.
+- **Web targets as resettable containers:** each can be started, attacked, and returned to a known state, with its starting condition recorded so a win that was already true cannot be counted.
+
+**How we know it worked:** the owned Spark reproduces the trial results; the tunnel reaches only the lab address; a test proves the tunnel is unreachable in malware mode; the authorisation service refuses out-of-scope and unsigned production requests; a target starts, is exercised by the existing lab worker over the link, and resets.
+
+**What can go wrong → what we do:** results differ on the owned unit → re-pin against its system image before anything else. The 32 GB laptop is tight → keep to light web containers for now; heavy systems are not needed until Stage 5.
+
+**Effort and realistic date:** 2–4 weeks. **Realistic: by 24 December 2026**, if the Spark is ordered by about 2 December.
+
+**Hands over:** a safe place for agents to work, and a model served on hardware we own.
+
+## 38. Stage 2A — The verifier and the loop (before measuring or training anything)
+**In plain words:** build the judge, the exam, and the practice machinery. Nothing is trained in this stage — on purpose. A model trained before its judge exists has learned from unchecked claims.
+
+**Starts when:** Stage 1B is done.
+
+**What the Spark does here:** serves the base model (G0) all day for the agents; runs the first sealed-set evaluation to record G0's baseline; serves the Thinking variant for the model comparison.
+
+**What gets built, in this order, and why the order matters:**
+1. **The sealed web benchmark and its runner.** A set of web tasks the training side can never read: it can only submit a model and receive a score. Built first because every later claim of improvement is measured on it, and an exam written after seeing the student's answers is worthless. Target: 200+ tasks over 10+ families (§29). Alongside it, the **canaries** — a fixed general-ability test that reveals forgetting.
+2. **The verifier service.** Small, plain-code checkers behind one interface:
+   - *exploitation* — did the objective really fall, read from the target's true state, and was it not already true beforehand;
+   - *detection* — does the rule catch the labelled attacks without flagging the benign traffic, with false positives penalised;
+   - *remediation* — is the hole closed **and** is the service still working.
+   Each has a second, independently written checker; a disagreement quarantines the data.
+3. **The assurance suite** — the tests *of the verifier*: cases with known answers; deliberate traps (an already-compromised target, a "fixed" service that is actually broken, a mislabelled sample); the disagreement alarm; a version stamp on every verdict. It runs on every change and a failing verifier cannot be used.
+4. **More web scenario families.** Ten or more independently built targets with seeded variation. This is slow, manual work and is the real limit on how much the model can learn; everything downstream depends on it.
+5. **The agent loop and trajectory store.** Think → choose an allowed action → pass the authorisation gate → act through the lab gateway → observe → repeat, with an action cap. Every step is saved with who, what model, what scenario, and when.
+6. **The dataset builder.** Turns verified trajectories into training sets: removes duplicates by behaviour, screens outside data, mixes in replay, and enforces the 15% family cap in code.
+7. **The model registry.** Each generation stored with its adapter, dataset fingerprint, settings and scores, never overwritten; any one can be restored.
+8. **The model comparison (D-2).** The same tasks run with Instruct and with Thinking; the verifier scores both; choose by verified wins per token.
+
+**How we know it worked:** the assurance suite passes and blocks changes that break it; the sealed runner scores a model without exposing a single task; an agent completes a web task from first step to verified verdict on the real model; the dataset builder demonstrably enforces its rules; a stored generation can be restored; the model choice is recorded with its evidence.
+
+**What can go wrong → what we do:**
+- Scenario building takes longer than planned (likely) → the January milestone uses a smaller first slice, clearly labelled (see §47).
+- The verifier is fooled by one of its own traps → that is the suite doing its job; fix before proceeding.
+- The model refuses lab tasks → the refusal ladder in §26; record the refusal rate.
+- The base model's success rate is very low → Loop A work on prompts and strategy, and easier Level 1–2 tasks, before any measuring.
+
+**Effort and realistic date:** 2–3 months of solo work. **Realistic: a minimum slice by 10 January 2027; complete by end of February 2027.**
+
+**Hands over:** a trustworthy judge, an unseen exam with G0's baseline score, and a working stream of verified experience.
+
+## 39. Stage 1.5 — The measurement gate
+**In plain words:** before betting on weight training, count honestly how much verified experience the rig produces.
+
+**Starts when:** Stage 2A is complete and the owner has decided D-3 (what happens after failed rounds) and D-4 (how uniqueness is counted).
+
+**What the Spark does here:** serves G0 for a measurement window of about a week while the agents work the web scenarios.
+
+**How it is done:** count verified, unique, non-trivial wins per day with the family cap applied; record the success rate, tokens per attempt and tokens per win; put these into the §25 formulas; compare with the pre-registered bar (300 a day, no family above 15%). The tool prints a figure and a recommendation; the owner decides.
+
+**The three possible outcomes — all valid:**
+1. The bar is cleared → Loop B is switched on at full volume.
+2. The bar is missed but there are 100+ verified examples → run the **pilot**. If the pilot beats G0 on the sealed set, the true bar was lower and is revised downward on that evidence. On one Spark this is the expected route.
+3. Volume is too low even for a pilot → Loop A is the working engine while scenario supply and success rate are improved; measure again.
+
+**Effort and realistic date:** 2–4 weeks. **Realistic: mid-March 2027.**
+
+**Hands over:** our own numbers for the compute budget, and a recorded decision on Loop B.
+
+## 40. Stage 2B — The proof: the first generations
+**In plain words:** train the model on its own verified experience and find out, on an exam it has never seen, whether it got better. This is the result the whole project stands on.
+
+**Starts when:** the Stage 1.5 decision is recorded. (The pilot may run earlier, as soon as 100 verified examples exist — that is the January milestone.)
+
+**What the Spark does here — the first real fine-tuning:**
+- **By day:** serves the current model; agents gather verified wins; Loop A improves strategy.
+- **On training nights:** the server stops; the dataset builder produces the round; the Spark trains a new adapter (4-bit QLoRA or the precision chosen after the trial), router frozen; every training metric is logged.
+- **On evaluation nights:** the candidate and G0 both sit the sealed set and the canaries.
+- **In the morning:** the gate result is read; a human approves or rejects.
+
+**What gets built:**
+- **The trainer** as a proper component (the trial's smoke script is its prototype): loss on the agent's own turns only, full metric logging, checkpoints.
+- **The promotion gate:** candidate must beat G0 on the sealed set with a paired statistical test, with no critical category worse, no rise in false positives, canaries within tolerance — then human approval. The exact thresholds are written down *before* the first evaluation (§29).
+- **The rollback controller:** compare a bad generation's logs with the last good one, restore, fix one cause, resume.
+- **The web curriculum controller:** raises difficulty as the success rate rises, steps back when prerequisites are missing, keeps a free-exploration share, logs every change.
+
+**The sequence of generations:**
+1. **G1 — the pilot.** ~100 verified examples, 2–3 epochs, about an hour of training. Purpose: prove the loop end to end and test the pilot rule.
+2. **G2 — first full-method generation.** More data and families, replay included. Diagnose with §31 if it disappoints.
+3. **G3 and on** — repeat, one change at a time, until a generation passes the gate or the D-3 rule is reached.
+
+**How we know it worked:** a generation trains with a complete, reconstructable record; it is compared with G0 on the sealed set with paired statistics; it is stored and can be rolled back; and **either** it measurably beats G0 and is promoted, **or** the outcome is logged honestly and the D-3 rule applied. Both end Phase 1.
+
+**What can go wrong → what we do:** loss falls but the exam does not improve → too little diverse data; build families, not epochs. Canaries fall → more replay, lower rate. Unstable training → the MoE fixes in §28. Scores look wrong though everything seems fine → suspect the verifier first.
+
+**Effort and realistic dates:** **G1 by 15 January 2027** (tight; see §47). **The proof — a promoted generation or a logged outcome — by end of April 2027.**
+
+**Hands over:** a model that is measurably better at verified web security work, and a loop that can repeat. **Phase 2 may not begin before this.**
+
+---
+
+## 41. Stage 3 — Defence, and the second domain
+**In plain words:** teach the model to defend using the attacks it can now carry out, and add Linux without forgetting web.
+
+**Starts when:** the Stage 2B proof holds.
+
+**What the Spark does here:** the same daily rhythm, now training generations (G4–G6) on a wider mix: web attacks, the matching defensive tasks on the same scenarios, and Linux tasks — always with replay of earlier data so web skill is kept.
+
+**What gets built, and why:**
+- **Defensive tools the model reads rather than trusts:** network monitoring (Suricata, Zeek) and endpoint monitoring (Wazuh, Velociraptor) on the lab. Each attack the offensive agents run now also produces labelled telemetry — the attack manufactures the defender's ground truth.
+- **Detection engineering:** agents write detection rules; the detection verifier scores them against that labelled telemetry. This is the cleanest task for later reinforcement learning because the score is exact.
+- **Remediation:** agents propose fixes in the sandbox; the verifier requires hole closed *and* service alive.
+- **Vulnerability prioritisation:** a local copy of the public vulnerability catalogues (no live internet) and a verifier that scores rankings against known versions.
+- **Incident records and a response engine** obeying the three authorisation levels: nothing touches a production system without a human-signed token tied to that exact action, and the model never holds production credentials.
+- **Live proof of ownership and the scope-breach playbook** — both required before any target outside the lab, even a pilot.
+- **Linux in the curriculum:** light containers, Levels 1–2 first, each scenario with its verifier before it is used.
+
+**How we know it worked:** each new verifier passes assurance before its data trains anything; the response engine cannot act on production without a token; an outside target without proof is refused; and a generation improves on the sealed benchmark across web and Linux with no canary regression.
+
+**What can go wrong → what we do:** adding Linux lowers web scores → forgetting; raise the replay share and retrain. Telemetry is incomplete → those tasks are unevaluable, not passes.
+
+**Effort and realistic dates:** 3–6 person-months. **Realistic: May to September 2027.** By the **30 June 2027** milestone: web defence tasks working and Linux at Levels 1–2 (§47).
+
+**Hands over:** a model that attacks and defends on web and Linux, and the controls needed before any outside engagement.
+
+## 42. Stage 4 — Recovery
+**In plain words:** prove, with a check that cannot be argued with, that a damaged system has been put back exactly as it was.
+
+**Starts when:** Stage 3 is done.
+
+**What the Spark does here:** little training; recovery tasks join the dataset for later generations.
+
+**What gets built:** backups that cannot be altered or deleted, held on credentials the AI side cannot reach; restore tests against snapshots; a deterministic recovery verifier that compares the restored system with the known-good state.
+
+**How we know it worked:** the backups are provably out of the AI's reach; a restore is verified automatically; the evidence is recorded.
+
+**Effort and realistic dates:** 1–2 person-months. **Realistic: October to November 2027.**
+
+## 43. Stage 5a — The full recursive engine
+**In plain words:** move from "one model, a few agents, supervised fine-tuning" to the full system: a large, varied population of agents, cooperation between them, and reinforcement learning — all still judged only by the verifier.
+
+**Starts when:** the Stage 2B proof holds and Stage 3's verifiers exist. No reinforcement learning or evolution before that.
+
+**What the Spark does here:**
+- **By day:** serves one model to a large logical population — thousands of configurations taking turns, never thousands of models.
+- **By night:** SFT rounds as before, and **GRPO rounds**. In GRPO the model makes a *group* of attempts at the same task; the verifier scores each; attempts better than the group's average are reinforced and worse ones discouraged. On a single GPU the practical form is: gather the groups by day through the fast server, compute the scores, apply the update at night. It is used only on tasks with exact, cheap verification (detection and remediation first).
+
+**What gets built, and why:**
+- **The agent population with MAP-Elites:** instead of keeping only the top scorers, keep the best agent *of each kind* (task category × strategy style). This preserves variety, which is what produces varied training data and avoids a blind spot.
+- **Cooperation, chosen per task:** a shared workspace for a team on one hard target, or agents spread across many targets. Only through defined, logged channels; some agents are kept blind and a critic attacks shared conclusions, so the group does not talk itself into an error.
+- **The three speed approaches,** each behind a switch and kept only if measured to help: sharing common work between agents; caching verified facts (a Loop A gain, not training); routing easy steps to a small disposable model.
+- **Full six-group logging, golden anchors, retention and environment versioning,** so that any decline can be traced to the model, the data, the curriculum or the verifier.
+
+**How we know it worked:** the population stays varied; cooperation leaves a complete record; each speed approach has a measurement behind it; GRPO generations pass the same gate as SFT ones; a deliberately degraded generation is rolled back and training resumes.
+
+**What can go wrong → what we do:** GRPO learns to game a checker → that is a verifier defect; fix and extend the assurance traps before continuing. Group collection is too slow → fewer, harder tasks with smaller groups; keep SFT as the main engine.
+
+**Effort and realistic dates:** 4–6 person-months. **Realistic: December 2027 to April 2028.**
+
+## 44. Stage 5b — The remaining domains: Windows, Active Directory, cloud, mobile
+**In plain words:** add the four heavier domains one at a time, each only after its verifier is assured, each added to — never replacing — what came before.
+
+**For every domain, the same five steps:** (1) build the lab environments for Levels 1–2; (2) build and assure its verifiers; (3) gather verified experience; (4) train a generation with replay of all earlier domains; (5) pass the gate with no earlier domain regressing — then build Levels 3–5.
+
+| Domain | Lab reality on the laptop | What the verifier reads | Realistic window |
+|---|---|---|---|
+| Windows | One heavy virtual machine at a time | Real account and privilege state; service state | Feb–Apr 2028 |
+| Active Directory | Several machines together — the heaviest; needs the 64 GB lab mini-PC (£150–300) or runs very slowly | Directory state: group membership, tickets, privileges actually obtained | May–Jul 2028 |
+| Cloud | Light containers emulating a provider offline; a real provider sandbox only where its behaviour matters, kept as separate evidence | Role and resource state in the emulated account | Aug–Sep 2028 |
+| Mobile | Android emulator and owned apps; iOS at app level only | Data or secrets actually reached on the owned device/app | Oct–Dec 2028 |
+
+**Malware detonation** is switched on in this stage, behind the state machine built in Stage 1B: no network or a fake one, snapshots restored after every run, and never while the tunnel is up.
+
+**What the Spark does here:** training rounds grow because the dataset is cumulative; replay is sampled to keep each round inside the night window; per-domain scores are reported separately so one strong domain cannot hide a weak one.
+
+**How we know it worked:** every domain has an assured verifier before any of its data trains; no earlier domain's score falls when a new one is added; detonation and the tunnel are never active together.
+
+**Effort:** roughly 2–3 months per domain, solo.
+
+## 45. Stage 6 — Commercial readiness (deferred)
+Outside current work by owner decision. When reopened: separation between customers, customer data kept out of training by default, a full dashboard with approvals and audit trails, independent testing of the platform's own defences, encrypted and monitored weights, update and support processes, and insurance and accreditation before any paid outside testing. **Realistic: not before 2029, and a separate decision.**
+
+---
+
+## 46. What stays true at every stage
+- The verifier for a task exists and is assured before that task trains anything.
+- No AI in any verifier, gate or authorisation decision.
+- Only verified wins are trained on; every round includes replay; the family cap is enforced in code.
+- The sealed benchmark is unreadable by the training side, and every use of it is recorded.
+- A human approves every promotion and every production action.
+- The lab holds no model, answer keys or credentials; lab code imports nothing from the Spark side.
+- Everything runs in pinned containers; every run can be reconstructed from its record.
+- One change at a time; temporary choices go in the decision log with a trigger.
+
+## 47. The realistic calendar
+
+Assumptions: one builder working close to full time with AI assistance; the trial is booked within two weeks; the Spark is ordered promptly and arrives in about a week. Every date moves day for day with those. These are estimates to be re-planned at each gate, not promises.
+
+| When | Milestone | What will honestly exist |
+|---|---|---|
+| by 30 Nov 2026 | Stage 1A | Our own GB10 numbers; purchase decided |
+| by 24 Dec 2026 | Stage 1B | Owned Spark and lab laptop linked safely |
+| by 10 Jan 2027 | Stage 2A, first slice | Verifier core with assurance; ~5 web families; agent loop; a first sealed set of ~80 tasks |
+| **15 Jan 2027** — owner target | **G1, the pilot** | **A fine-tuned adapter trained on ~100 verified web wins, served on our stack, compared with the base model on the first sealed set.** The comparison is preliminary — 80 tasks cannot confirm a small gain — and will be labelled so. No slack in this date |
+| end Feb 2027 | Stage 2A complete | 10+ families; 200-task sealed set; registry; model variant chosen |
+| mid Mar 2027 | Stage 1.5 | Measured wins per day; Loop B decision |
+| end Apr 2027 | **Stage 2B — the proof** | A promoted generation that beats the base on the full sealed set — or an honest logged result |
+| **30 Jun 2027** — owner target | Stage 3 under way | **Web: attack and defence, Levels 1–4. Linux: Levels 1–2 with assured verifiers. The other four domains: specified with assurance contracts, not yet built or trained** |
+| Sep 2027 | Stage 3 complete | Web + Linux, attack and defence; outside-target controls ready |
+| Nov 2027 | Stage 4 | Verified recovery |
+| Apr 2028 | Stage 5a | Population, cooperation, GRPO, full logging |
+| Dec 2028 | Stage 5b | All six domains trained, each measured separately |
+| 2029 | Stage 6 | Separate decision |
+
+**On the two owner targets, plainly:**
+- **15 January 2027 is achievable as a pilot generation with a preliminary comparison**, and only if November and December go to plan. A *confirmed* improvement belongs to the end-of-April proof.
+- **30 June 2027 cannot be a six-domain product on one Spark with one builder.** Windows, AD and mobile each need a heavy lab and their own verifiers, and no domain may train before its verifier exists. What June can honestly hold is two domains working and four specified. The six-domain system is realistically the end of 2028.
+
+**What would bring dates forward:** a second person building scenarios and verifiers in parallel (the true bottleneck is human, not the Spark); accepting Levels 1–2 only for the later domains; buying the lab mini-PC early so heavy environments do not queue. **What would not:** more training time, a second GPU, or skipping verifier assurance — the model learns only as fast as verified, varied experience arrives.
 
 ---
 
