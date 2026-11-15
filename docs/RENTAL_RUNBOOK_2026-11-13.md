@@ -10,7 +10,7 @@ references; v1.3 is a proposal. No GPU result has been produced.
 ## Current verdict
 
 Offline validation (latest, 15 Nov, after the GB10 lifecycle and Enverge-sandbox
-hardening): Linux as CI runs it — ruff clean, 322 passed, 3 Torch-only skips; those
+hardening): Linux as CI runs it — ruff clean, 327 passed, 3 Torch-only skips; those
 Torch-dependent checks (PEFT save/reload/disable/generate roundtrip, reload logit
 classifier, isolation) pass separately: 38 passed with CPU torch 2.15, transformers
 5.23, peft 0.21. CPU only, not GB10 evidence. Earlier record: 225 passed, 2 skips.

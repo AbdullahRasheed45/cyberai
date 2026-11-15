@@ -309,6 +309,17 @@ duration against your intended data/context mix, not a guessed speed target.
 
 ## 10. Export and stop billing
 
+First build the report the purchase decision is made from (it only reads result files;
+missing measurements are shown as "not measured"; it contains no verdict):
+
+```bash
+python3 scripts/rental/summarise_trial.py --out docs/stage1_baseline.md \
+  --round-tokens YOUR_TOKENS_PER_TRAINING_ROUND --hourly-rate YOUR_RENTAL_PRICE
+```
+
+Both options are optional and only add a labelled arithmetic extrapolation (hours and
+cost per training round at the measured rate). Copy the report out with the artifacts.
+
 Check export_result.json and receipt.json in the per-run artifact directory.
 The bundle copy verifies destination bytes; also verify access from outside the
 rental. Copy extra matrix outputs, console logs and selected freeze/probe logs.

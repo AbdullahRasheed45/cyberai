@@ -34,6 +34,7 @@ its `EvidenceRecord.evidence` field is `HARDWARE`.
 | 17 | LoRA on the FP8 MoE primary, via the rental lifecycle | phase `start_lora` → `verify_adapter_identity` → workload | adapter served and producing a parseable response is evidence toward #9; it does NOT by itself flip `require_lora_fp8_verified` — that still needs the correctness review in #9 |
 | 19 | Docker runtime flags in the provider sandbox | `python3 scripts/rental/docker_runtime_setup.py` | `status: READY`; a GPU mode shows GB10; mounts read+write; loopback port reachable (R-010) |
 | 20 | 4-bit QLoRA vs bf16 training throughput | first lifecycle (qlora_4bit) + `TRAIN_PRECISION=bf16` cell | both `train_meta.json` files present; compare `steady_state_tok_s` (R-008) |
+| 21 | Stage-1 baseline report for the purchase gate (P-001) | `python3 scripts/rental/summarise_trial.py --out docs/stage1_baseline.md` | report committed; owner criteria and decision filled in |
 | 18 | Calibrate lifecycle thresholds | first completed run of #16 | see `DECISIONS_TO_REVISIT.md` R-007 / issue #16 |
 
 See `DECISIONS_TO_REVISIT.md` R-005 (serving choices) and R-007 (lifecycle thresholds) for the tracked follow-up issues.

@@ -96,7 +96,7 @@ Before these fixes, several things would probably have broken a perfectly good r
 | A run stopped by its time limit left the model server running and lost its results | The next run would clash with it, and you'd have no evidence | A stopped run now shuts its containers and exports what it has (10-minute grace period); a leftover container is cleared before the next start |
 | Opening a new terminal and forgetting to load the measured Docker settings | GPU containers would fail on Enverge after a long wait | Every Docker-using step refuses to start and names the command to run |
 
-All of this is covered by automated tests: **322 pass on Linux** (the way GitHub CI runs
+All of this is covered by automated tests: **327 pass on Linux** (the way GitHub CI runs
 them), plus **38** PyTorch-dependent checks run separately. None of it has run on a GPU
 yet — that is what the trial is for.
 
@@ -126,6 +126,7 @@ me its output); I cannot reach the machine on my own.
    a reminder. Only deleting the instance in Enverge's portal stops billing.
 4. **Your yardstick:** decide what "fast enough" means for you before looking at the
    numbers (for example, "one training round on my data must finish within X hours").
+   The summary report's first section is where you write it down.
 5. **GitHub access on the Spark:** the repository is private. Have your GitHub login
    or a deploy key ready; never paste a token into a command.
 6. **Optional:** a Hugging Face token (`HF_TOKEN`) makes the big downloads less likely
@@ -175,7 +176,10 @@ Each step says what it does. Exact commands are also in `RENTAL_START_HERE.md`.
     ```
     Then the **bf16 comparison** and longer-text training runs (section 8 of
     `RENTAL_START_HERE.md`), each with a new `RUN_ID`.
-12. **Copy everything out, then delete the instance.** From your laptop, for example:
+12. **Build the summary report:** `python3 scripts/rental/summarise_trial.py --out docs/stage1_baseline.md`
+    (add `--round-tokens` and `--hourly-rate` to also get hours and cost per training round).
+    It gathers every number into one page and leaves the BUY / DO NOT BUY line for you.
+13. **Copy everything out, then delete the instance.** From your laptop, for example:
     `scp -r <your Enverge SSH address>:~/cyberai/artifacts ./trial_artifacts` and the
     same for `runs` (adapters and training logs). Check the files opened on your laptop.
     Then delete the instance in the Enverge portal and confirm billing stopped.

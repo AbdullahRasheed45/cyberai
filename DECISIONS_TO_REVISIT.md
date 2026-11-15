@@ -185,3 +185,18 @@ This file tracks choices made because of a **current constraint** that will chan
 - **Action on trigger:** run the setup script on the new machine (an owned DGX is
   expected to select the standard defaults); remove Enverge-specific runbook notes.
 - **Issue:** #19
+
+## Trigger group: `revisit-on-measurement` — Stage 2 start
+
+### R-011 — Trial-era packages live outside the `services/` layout
+- **Decision (for now):** the Stage-1 trial code is in top-level packages (`rental/`,
+  `detection_verifier/`, `lab/web_workflow/`); `services/*` are empty placeholders, so
+  the layered `api/domain/infra` shape in `docs/ARCHITECTURE.md` is not yet followed.
+- **Why now:** the priority was a tested trial pipeline before the hardware decision;
+  building service shells with nothing behind them would have been ceremony.
+- **Trigger:** Stage 2A begins (trial complete, purchase decided).
+- **Action on trigger:** build `verifier_service` to the ARCHITECTURE shape with
+  `detection_verifier` as its domain core and its isolation/acceptance as infra; keep
+  `rental/` as a trial tool outside `services/`; keep `lab/` on the lab machine.
+  Preserve the import rules (lab imports nothing from the engine; no LLM in gate code).
+- **Issue:** #20
