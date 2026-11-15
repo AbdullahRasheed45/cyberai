@@ -197,3 +197,52 @@ def test_base_load_kwargs_omit_unsupported_exact_name_flag():
 def test_reload_uses_training_precision():
     source = Path("scripts/smoke_reload.py").read_text(encoding="utf-8")
     assert 'meta.get("precision"' in source and "base_load_kwargs(" in source
+
+
+# --- adapter target set: attention-only by default, expert projections as a comparison ---
+
+
+def test_default_target_set_is_attention_and_reaches_docker():
+    from rental import training_config
+
+    hp = training_config.load()
+    assert training_config.effective_targets(hp, {}) == (
+        "attention",
+        ["q_proj", "k_proj", "v_proj", "o_proj"],
+    )
+    assert "TRAIN_TARGET_SET=attention" in train_argv(_rc())
+
+
+def test_target_set_all_is_an_explicit_comparison_and_bad_values_fail():
+    from rental import plan, training_config
+    from tests.test_orchestration import _good_freeze
+
+    hp = training_config.load()
+    name, modules = training_config.effective_targets(hp, {"TRAIN_TARGET_SET": "all"})
+    assert name == "all" and modules == list(hp.target_modules) and "gate_proj" in modules
+    rc = plan.resolve(
+        _good_freeze(), env={"MODEL_PATH": "/m", "RUN_ID": "r1", "TRAIN_TARGET_SET": "all"}
+    )
+    assert "TRAIN_TARGET_SET=all" in train_argv(rc)
+    with pytest.raises(FreezeInvalid):
+        plan.resolve(_good_freeze(), env={"MODEL_PATH": "/m", "TRAIN_TARGET_SET": "experts"})
+
+
+def test_adapter_size_arithmetic_for_the_pinned_model():
+    """Why attention is the default: sizes follow from the pinned config's dimensions."""
+    hidden, layers, experts, moe, rank = 2048, 48, 128, 768, 16
+    q, kv = 32 * 128, 4 * 128
+
+    def lora(i, o):
+        return rank * (i + o)
+
+    attention = layers * (lora(hidden, q) + 2 * lora(hidden, kv) + lora(q, hidden))
+    expert = layers * experts * (2 * lora(hidden, moe) + lora(moe, hidden))
+    assert round(attention / 1e6, 1) == 13.4 and round(expert / 1e6, 1) == 830.5
+    assert expert / (attention + expert) > 0.98
+
+
+def test_trainer_uses_the_effective_targets_and_records_them():
+    source = Path("scripts/smoke_train.py").read_text(encoding="utf-8")
+    assert "target_modules=TARGETS" in source and '"target_set": TARGET_SET' in source
+    assert '"trainable_parameters"' in source

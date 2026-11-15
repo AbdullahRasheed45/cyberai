@@ -92,6 +92,7 @@ def main():
     try:
         HP = training_config.load(hp_path)
         PRECISION = training_config.effective_precision(HP)
+        TARGET_SET, TARGETS = training_config.effective_targets(HP)
     except training_config.TrainingConfigError as exc:
         fail(str(exc))
     import hashlib
@@ -173,7 +174,7 @@ def main():
         r=HP.lora_rank,
         lora_alpha=HP.lora_alpha,
         lora_dropout=HP.lora_dropout,
-        target_modules=list(HP.target_modules),
+        target_modules=TARGETS,
         use_gradient_checkpointing=HP.gradient_checkpointing,
         random_state=HP.seed,
     )  # router frozen by default (verified below)
@@ -424,6 +425,9 @@ def main():
         "train_runtime_s": train_secs,
         "training_config": BENCH.__dict__,
         "precision": PRECISION,
+        "target_set": TARGET_SET,
+        "target_modules_used": TARGETS,
+        "trainable_parameters": sum(int(v.numel()) for v in pre.values()),
         "base_load_kwargs": {k: str(v) for k, v in load_kwargs.items()},
         "hyperparameters": HP.as_dict(),
         "hyperparameters_file_sha256": hp_sha256,

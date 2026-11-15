@@ -17,6 +17,23 @@ DEFAULT_PATH = "configs/training.yaml"
 
 # vLLM only accepts these --max-lora-rank values.
 VLLM_LORA_RANKS = (1, 8, 16, 32, 64, 128, 256, 320, 512)
+# Which target modules receive adapters. `attention` is a strict subset of the list.
+TARGET_SETS = {"attention": ("q_proj", "k_proj", "v_proj", "o_proj"), "all": None}
+
+
+def effective_targets(hp: TrainingHyperparameters, env=None) -> tuple[str, list[str]]:
+    """(target set name, module names). TRAIN_TARGET_SET overrides the file's default."""
+    env = os.environ if env is None else env
+    name = (env.get("TRAIN_TARGET_SET") or hp.target_set).strip()
+    if name not in TARGET_SETS:
+        raise TrainingConfigError(f"target_set must be one of {sorted(TARGET_SETS)}, got {name!r}")
+    wanted = TARGET_SETS[name]
+    modules = [m for m in hp.target_modules if wanted is None or m in wanted]
+    if not modules:
+        raise TrainingConfigError(f"target_set {name!r} selects none of {list(hp.target_modules)}")
+    return name, modules
+
+
 # Frozen-base precision during training. FP8 training is deliberately not offered.
 PRECISIONS = ("qlora_4bit", "bf16")
 
@@ -40,6 +57,7 @@ class TrainingHyperparameters:
     lora_rank: int
     lora_alpha: int
     lora_dropout: float
+    target_set: str
     target_modules: tuple
     gradient_checkpointing: object  # "unsloth" | True | False
     packing: bool
@@ -73,6 +91,8 @@ def _check(raw: dict) -> TrainingHyperparameters:
         raise TrainingConfigError("lora_alpha must be a positive integer")
     if not (0.0 <= float(raw["lora_dropout"]) < 1.0):
         raise TrainingConfigError("lora_dropout must be in [0, 1)")
+    if raw["target_set"] not in TARGET_SETS:
+        raise TrainingConfigError(f"target_set must be one of {sorted(TARGET_SETS)}")
     targets = raw["target_modules"]
     if not isinstance(targets, list) or not targets or not all(isinstance(t, str) for t in targets):
         raise TrainingConfigError("target_modules must be a non-empty list of names")
@@ -95,6 +115,7 @@ def _check(raw: dict) -> TrainingHyperparameters:
         lora_rank=int(raw["lora_rank"]),
         lora_alpha=int(raw["lora_alpha"]),
         lora_dropout=float(raw["lora_dropout"]),
+        target_set=raw["target_set"],
         target_modules=tuple(targets),
         gradient_checkpointing=raw["gradient_checkpointing"],
         packing=raw["packing"],

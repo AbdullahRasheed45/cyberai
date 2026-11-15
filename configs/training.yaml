@@ -18,7 +18,15 @@ precision: qlora_4bit
 lora_rank: 16              # must be a vLLM-supported max-lora-rank value
 lora_alpha: 32
 lora_dropout: 0.0
-# Must equal FREEZE.yaml adapter_targets (rental/plan.py enforces it).
+# Which of the target_modules below actually get adapters (TRAIN_TARGET_SET overrides):
+#   attention  default. q/k/v/o only: 192 modules, ~13M parameters (~27 MB). Every token
+#              trains every adapter, so it suits small rounds such as the ~100-example pilot.
+#   all        comparison run. Adds the expert projections: 18,624 modules, ~844M parameters
+#              (~1.7 GB); each expert sees only ~6% of tokens (8 of 128 active), so it needs
+#              far more data. Adopt only on a measured gain (DECISIONS_TO_REVISIT.md R-012).
+# Figures computed from the pinned model config (hidden 2048, 48 layers, 128 experts).
+target_set: attention
+# The full permitted list. Must equal FREEZE.yaml adapter_targets (rental/plan.py enforces it).
 target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
 # Router stays frozen (Unsloth FastModel default = frozen-router policy, brief §7.7);
 # smoke_train.py fails loudly if any router parameter is trainable.

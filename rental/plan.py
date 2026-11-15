@@ -90,6 +90,7 @@ class ResolvedConfig:
     serving: object = field(default_factory=load_serving_config)
     hparams: object = field(default_factory=_default_training_hparams)
     train_precision: str = "qlora_4bit"
+    train_target_set: str = "attention"
 
     @property
     def url(self) -> str:
@@ -185,6 +186,7 @@ def resolve(freeze: dict, env: dict | None = None) -> ResolvedConfig:
         raise FreezeInvalid(f"training config invalid: {exc}") from None
     try:
         train_precision = training_config.effective_precision(hparams, env)
+        train_target_set, _ = training_config.effective_targets(hparams, env)
     except training_config.TrainingConfigError as exc:
         raise FreezeInvalid(str(exc)) from None
     if list(hparams.target_modules) != list(freeze.get("adapter_targets") or []):
@@ -225,6 +227,7 @@ def resolve(freeze: dict, env: dict | None = None) -> ResolvedConfig:
         serving=serving,
         hparams=hparams,
         train_precision=train_precision,
+        train_target_set=train_target_set,
     )
 
 
@@ -357,6 +360,8 @@ def train_argv(rc):
         "-e",
         f"TRAIN_PRECISION={rc.train_precision}",  # explicit per run: qlora_4bit | bf16
         "-e",
+        f"TRAIN_TARGET_SET={rc.train_target_set}",  # explicit per run: attention | all
+        "-e",
         "PYTHONUNBUFFERED=1",  # live console log for the tracker during training
         "-e",
         "HF_TOKEN",  # pass-through by NAME: the value never enters argv/evidence
@@ -406,6 +411,7 @@ def workload_cmd(rc):
         }
     return [sys.executable, "scripts/rental/40_workload.py"], {
         **host_env(rc, rc.adapter_served_id),
+        "BASE_SERVED_MODEL": rc.base_served_id,  # for the base-vs-adapter probe
         "WORKLOAD_DOMAIN": rc.workload_domain,
     }
 

@@ -96,6 +96,8 @@ class TrainingConfig(BaseModel):
     lora_rank: Literal[1, 8, 16, 32, 64, 128, 256, 320, 512]
     lora_alpha: int = Field(gt=0)
     lora_dropout: float = Field(ge=0, lt=1)
+    # attention = q/k/v/o only (small, data-efficient); all = also the MoE expert projections.
+    target_set: Literal["attention", "all"]
     target_modules: list[str] = Field(min_length=1)
     gradient_checkpointing: Literal["unsloth"] | bool
     packing: bool
