@@ -25,7 +25,10 @@ the caveats there, especially:
 
 Run on the GB10 host itself (rented cloud instance or an owned DGX Spark —
 see `docs/EXECUTION_ENVIRONMENTS.md`), not on the Windows dev machine:
-- Docker with NVIDIA Container Toolkit (`--gpus all` must work).
+- Docker with GPU access. On a standard host `--gpus all` works; on a sandboxed
+  provider (Enverge) run `python3 scripts/rental/docker_runtime_setup.py` and
+  `source artifacts/docker_runtime/docker_env.sh` first — every command below then
+  uses the measured GPU flags.
 - `.env` populated from `.env.example` (`HF_TOKEN` if you hit rate limits;
   both configured models are public as of 2026-11-11, so it is not
   required for access).

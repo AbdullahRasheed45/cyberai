@@ -55,17 +55,22 @@ python3 scripts/rental/docker_runtime_setup.py
 source artifacts/docker_runtime/docker_env.sh
 ```
 
-It tries each GPU mode (`gpus`, `runtime`, `cdi`) by running `nvidia-smi` inside the
-vLLM image, then checks `--ipc=host` (else `--shm-size 16g`), raised ulimits, that a
+It tries each GPU mode (`gpus`, `runtime`, `cdi`) by asking the vLLM image for its GPU
+name (`nvidia-smi`, or PyTorch if the runtime does not inject `nvidia-smi`; the answer
+is a tagged line, so NVIDIA's start-up banner cannot confuse it). With the chosen GPU
+flags it then checks `--ipc=host` (else `--shm-size 16g`) and raised ulimits, that a
 container can **read and write this checkout at the same path** (a Docker daemon that
-sees a different filesystem would make every mount empty — that is a hard stop), and
-that a container's port is reachable on `127.0.0.1` (else host networking). Result:
-`artifacts/docker_runtime/docker_runtime.json` (evidence) and `docker_env.sh`
-(the settings). Exit 0 with `"status": "READY"` means go; anything else, read
-`blockers` in the JSON and stop.
+sees a different filesystem would make every mount empty — a hard stop), **all of those
+flags together** exactly as training runs (dropping ulimits if only they break the
+combination), and that a container's port is reachable on `127.0.0.1` (else host
+networking), using a free port. Result: `artifacts/docker_runtime/docker_runtime.json`
+(evidence) and `docker_env.sh` (the settings). Exit 0 with `"status": "READY"` means
+go; anything else, read `blockers` in the JSON and stop.
 
 **Every new SSH terminal must `source artifacts/docker_runtime/docker_env.sh` again**
-before running Docker-using commands (variables do not carry across terminals).
+before running Docker-using commands (variables do not carry across terminals). If you
+forget, `check_preparation.py`, `collect_image_pins.py`, `run_smoke.sh`,
+`gb10_serve.sh` and the lifecycle all refuse to start and print the command to run.
 
 3. Continue with RENTAL_START_HERE.md from `collect_image_pins.py` onward. The probe,
    serving, training and preflight all use the sourced settings automatically, and the

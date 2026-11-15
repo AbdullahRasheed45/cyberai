@@ -71,6 +71,8 @@ What I built for this:
   4. checks a server inside a container can be reached from your session.
   It saves the answers to `artifacts/docker_runtime/docker_env.sh`. You load them with
   `source artifacts/docker_runtime/docker_env.sh` — **in every new terminal window**.
+  If you forget, nothing goes wrong silently: the preparation check, the image check
+  and the trial itself all refuse to start and tell you the exact command to run.
 - Things that need administrator rights (clearing the memory cache) are tried, and if
   refused they are simply recorded as "not permitted"; the run carries on.
 - I rehearsed this script on your laptop's Docker (no GPU there): the folder read/write
@@ -91,10 +93,12 @@ Before these fixes, several things would probably have broken a perfectly good r
 | The training container tried to install the project from the internet | Could fail on network/permissions | Uses the project folder directly; prints progress live |
 | Serving ignored the GB10 settings researched earlier | Untested defaults on the rental | Serving uses `configs/serving.yaml` everywhere |
 | A side branch with the benchmark tool had been left behind | The rental would not have had it | Merged in |
+| A run stopped by its time limit left the model server running and lost its results | The next run would clash with it, and you'd have no evidence | A stopped run now shuts its containers and exports what it has (10-minute grace period); a leftover container is cleared before the next start |
+| Opening a new terminal and forgetting to load the measured Docker settings | GPU containers would fail on Enverge after a long wait | Every Docker-using step refuses to start and names the command to run |
 
-All of this is covered by automated tests: **313 pass** (plus 22 extra checks that need
-the PyTorch library, run separately). None of it has run on a GPU yet — that is what the
-trial is for.
+All of this is covered by automated tests: **322 pass on Linux** (the way GitHub CI runs
+them), plus **38** PyTorch-dependent checks run separately. None of it has run on a GPU
+yet — that is what the trial is for.
 
 ## 6. The live tracker (how the run is watched)
 

@@ -145,9 +145,11 @@ extra training-matrix outputs and dataset hash as well.
 - Windows host RAM via /proc is unavailable; run the tracker on Linux Spark for it.
 - Wrapper sampling slightly perturbs timing; use the same sampling setup when
   comparing cells and preserve synchronized trainer step measurements separately.
-- A tracker timeout does not terminate detached Docker containers or provider
-  billing. Inspect/stop the trial's containers and delete the provider instance
-  after confirmed export. Windows process-tree termination is not guaranteed.
+- On timeout the tracker sends SIGTERM, shows `TERMINATING`, and waits `--grace`
+  seconds (default 600) before SIGKILL. The orchestrated lifecycle uses that time to
+  stop its serving containers and export partial evidence. A tracker timeout never
+  stops provider billing: delete the instance after confirmed export. Windows
+  process-tree termination is not guaranteed.
 - A host/kernel crash can interrupt the final JSON. Console logs and completed
   training-step JSONL are partial evidence, not a completed run.
 

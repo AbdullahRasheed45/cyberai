@@ -9,10 +9,16 @@ anything below. This README is a quick-start for humans; `CLAUDE.md` and
 
 ## What this is, right now
 
-Stage 0 scaffolding + Stage 1 foundation: typed config/result schemas,
-validation, tooling, and governance docs. It does **not** yet include a
-running verifier, a learning engine, or a served model — see
-`docs/ARCHITECTURE.md` for what gets built in which stage.
+Stage 1, prepared for the GB10 hardware trial that gates the DGX Spark purchase:
+typed configs and evidence schemas; a narrow, assurance-tested detection verifier
+(`detection_verifier/`); a small owned-lab web workflow (`lab/web_workflow/`); and
+the phased rental lifecycle (`rental/`) that serves Qwen3-30B-A3B (FP8), measures
+it, trains a 4-bit QLoRA adapter, reloads and deploys it, and exports hashed
+evidence, with a live tracker. Nothing has run on a GPU yet. There is no learning
+engine, model registry or sealed benchmark service yet — see `docs/ARCHITECTURE.md`.
+
+**Running the trial:** start with `docs/OWNER_GUIDE_GB10_TRIAL.md` (plain English),
+then `docs/RENTAL_START_HERE.md` (exact commands).
 
 ## Build order (do not reorder)
 
@@ -31,7 +37,7 @@ assurance suite** (CLAUDE.md PRIME DIRECTIVE #1).
 Prerequisites: `git`, Python 3.11+, [`uv`](https://docs.astral.sh/uv/).
 
 ```bash
-uv sync          # installs runtime + dev (ruff) dependency groups
+uv sync          # installs runtime + dev (pytest, ruff) dependency groups
 make test        # uv run pytest -q
 make lint        # ruff check + ruff format --check
 make format      # ruff format + ruff check --fix
@@ -57,11 +63,15 @@ configs/         non-secret policy YAML, each validated against a libs/schemas m
 services/        per-service api/domain/infra skeletons (docs/ARCHITECTURE.md)
 verifiers/       the assured verifier (Stage 2 — build order above)
 benchmarks/      sealed hold-out benchmark + forgetting canaries
-lab/             isolated-lab code (targets, state machine) — never imports Spark code
+lab/             isolated-lab code (web workflow target/worker) — never imports Spark code
+rental/          GB10 trial lifecycle: plan, orchestrate, docker runtime, telemetry, live tracker
+detection_verifier/  bounded Sigma-subset detection verifier + assurance suite
+fixtures/        verifier/workflow fixtures (detection, web train/dev/challenge)
 containers/      pinned container image tags + PROVENANCE.md (vLLM, Unsloth NGC)
 scripts/gb10/    GB10 serving: arg rendering, preflight, health checks (docs/GB10_SERVING.md)
 scripts/bench/   serving-capacity benchmark harness (docs/BENCHMARK_HARNESS.md)
-scripts/         GB10-session scripts (serving smoke test, train smoke test, benchmarks)
+scripts/rental/  trial steps: preflight, measure, workload, export, image pins, docker setup
+scripts/         train/reload smoke (smoke_train.py, smoke_reload.py), run_smoke.sh
 tests/           unit / integration / assurance
 docs/            the design docs and stage runbooks — read in the order CLAUDE.md gives
 ```
@@ -116,7 +126,9 @@ configuration is only ever computed from real hardware results, and is
 
 ## Current status
 
-Stage 0 → Stage 1 foundation (no GB10/lab hardware touched by this work —
-see the PR's "Hardware evidence" section and
-`DECISIONS_TO_REVISIT.md` for what that implies and what to do once a GB10
-session / lab laptop is available).
+Stage 0 → Stage 1. Offline preparation for the GB10 trial is complete and tested
+(CPU only); the authorised trial on a rented Enverge GB10 is next. Owner decisions in
+force: Qwen3-30B-A3B MoE only; 4-bit QLoRA training by default with bf16 as a measured
+comparison. Everything that still needs real hardware is listed in
+`docs/PENDING_HARDWARE_CHECKS.md`; temporary choices and their triggers are in
+`DECISIONS_TO_REVISIT.md`.

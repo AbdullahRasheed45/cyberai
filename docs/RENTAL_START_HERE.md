@@ -237,9 +237,14 @@ Results to read after each run: `artifacts/run_$RUN_ID/inference_measurements.js
 `exact` or labelled `kernel_tolerant`), `artifacts/run_$RUN_ID/workload_result.json`,
 `receipt.json` and `export_result.json`.
 
-Do not restart with the same RUN_ID. A timeout can leave containers running;
-inspect `docker ps` before continuing. Never overlap serving and training merely
-to save time on a shared-memory device.
+Do not restart with the same RUN_ID. On its `--timeout` the tracker sends SIGTERM
+and waits `--grace` seconds (default 600) before killing: the lifecycle treats SIGTERM
+(or a closed SSH session, SIGHUP) as a failure, stops its serving containers and
+exports partial evidence; the dashboard shows `TERMINATING` meanwhile. A leftover
+`cyberai_serve_*` container from an interrupted run is removed (and logged) before the
+next start. Still inspect `docker ps` after any interruption. Never overlap serving
+and training merely to save time on a shared-memory device. Run long commands inside
+`tmux` (or `screen`) if available, so a dropped SSH connection does not stop them.
 
 ## 8. Training matrix after the first path works
 
