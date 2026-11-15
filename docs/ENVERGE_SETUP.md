@@ -82,7 +82,7 @@ This path does not launch nested containers. It uses Enverge's installed GPU
 stack only if the inventory establishes aarch64, GB10 capability 12.1, CUDA bf16
 arithmetic and the required imports. `existing_environment_blockers` must be empty.
 Also review package versions, provider image identity and provenance against the
-known-good SM121/FastModel recipe in BRIEF_v1.2_CORRECTIONS_AND_SETUP.md.
+known-good SM121/FastModel recipe in history/BRIEF_v1.2_CORRECTIONS_AND_SETUP.md.
 An empty blocker list checks interfaces/basic CUDA, not optimized MoE kernels.
 
 If the required environment is absent or incompatible, neither runnable Docker

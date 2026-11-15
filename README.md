@@ -15,9 +15,9 @@ typed configs and evidence schemas; a narrow, assurance-tested detection verifie
 the phased rental lifecycle (`rental/`) that serves Qwen3-30B-A3B (FP8), measures
 it, trains a 4-bit QLoRA adapter, reloads and deploys it, and exports hashed
 evidence, with a live tracker. Nothing has run on a GPU yet. There is no learning
-engine, model registry or sealed benchmark service yet — see `docs/ARCHITECTURE.md`.
+engine, model registry or sealed benchmark yet — see `docs/MASTER_BRIEF_v2.0.md` §4 (design) and §8–§12 (the build, stage by stage).
 
-**The design, status and plan:** `docs/MASTER_PROJECT_BRIEF_v1.5.md`.
+**The design, status and the whole build plan:** `docs/MASTER_BRIEF_v2.0.md` — the single governing document. `docs/README.md` indexes every other doc.
 
 **Running the trial:** start with `docs/OWNER_GUIDE_GB10_TRIAL.md` (plain English),
 then `docs/RENTAL_START_HERE.md` (exact commands).
@@ -30,7 +30,7 @@ infrastructure  →  assured web verifier  →  verified-volume measurement  →
 ```
 
 Each stage is gated on the previous one's Definition-of-Done
-(`docs/SONNET_COMPLETE_BUILD_PLAN.md`). In particular: **no training, no
+(`docs/MASTER_BRIEF_v2.0.md` §8–§12). In particular: **no training, no
 scoring, before the verifier it depends on exists and passes its own
 assurance suite** (CLAUDE.md PRIME DIRECTIVE #1).
 
@@ -62,7 +62,7 @@ libs/schemas/    typed DTOs + config/result models — the cross-service lingua 
 libs/common/     logging, ids, timestamps, the YAML config loader
 libs/clients/    typed inter-service HTTP clients (filled as services exist)
 configs/         non-secret policy YAML, each validated against a libs/schemas model
-services/        per-service api/domain/infra skeletons (docs/ARCHITECTURE.md)
+engine/          Spark-side engine: agents, verifier, dataset, train, gate, registry (v2.0 §4.2; built in Stage 2)
 verifiers/       the assured verifier (Stage 2 — build order above)
 benchmarks/      sealed hold-out benchmark + forgetting canaries
 lab/             isolated-lab code (web workflow target/worker) — never imports Spark code

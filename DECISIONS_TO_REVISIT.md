@@ -84,7 +84,7 @@ This file tracks choices made because of a **current constraint** that will chan
   and no lab laptop was set up at the time.
 - **Trigger:** a GB10 session (rented or owned) or the lab laptop becomes
   available.
-- **Action on trigger:** run `docs/STAGE_0_AND_1_EXACT.md` Part B (serving
+- **Action on trigger:** run `docs/history/STAGE_0_AND_1_EXACT.md` Part B (serving
   smoke test, Unsloth smoke test, throughput measurement) and the lab state
   machine/WireGuard checks on the real hardware; replace every `LOCAL`
   evidence claim this foundation produced with a `HARDWARE` one before
@@ -191,7 +191,7 @@ This file tracks choices made because of a **current constraint** that will chan
 ### R-011 — Trial-era packages live outside the `services/` layout
 - **Decision (for now):** the Stage-1 trial code is in top-level packages (`rental/`,
   `detection_verifier/`, `lab/web_workflow/`); `services/*` are empty placeholders, so
-  the layered `api/domain/infra` shape in `docs/ARCHITECTURE.md` is not yet followed.
+  the layered `api/domain/infra` shape in `docs/history/ARCHITECTURE.md` is not yet followed.
 - **Why now:** the priority was a tested trial pipeline before the hardware decision;
   building service shells with nothing behind them would have been ceremony.
 - **Trigger:** Stage 2A begins (trial complete, purchase decided).
@@ -200,3 +200,19 @@ This file tracks choices made because of a **current constraint** that will chan
   `rental/` as a trial tool outside `services/`; keep `lab/` on the lab machine.
   Preserve the import rules (lab imports nothing from the engine; no LLM in gate code).
 - **Issue:** #20
+
+### R-012 — Attention-only LoRA by default; expert projections as a comparison
+- **Decision (for now):** `configs/training.yaml target_set: attention` trains adapters on
+  q/k/v/o only (192 modules, ~13M parameters, ~27 MB). The expert projections
+  (gate/up/down_proj) are excluded by default. `TRAIN_TARGET_SET=all` runs the comparison.
+- **Why now:** computed from the pinned model config, all seven targets = 18,624 modules /
+  ~844M parameters / ~1.7 GB, 98% of it inside the 128 experts where each adapter sees only
+  ~6% of tokens (8 of 128 active). A ~100-example pilot gives each expert adapter ~37,000
+  tokens — far too few to learn. Attention-only is trained by every token and is also the
+  adapter shape most likely to serve correctly on the quantised model.
+- **Trigger:** the trial's attention-only and all-target cells both complete (T1A.6); and
+  again once verified training data is plentiful.
+- **Action on trigger:** compare tokens/sec, peak memory and (once eval exists) sealed-set
+  score at equal data; keep attention-only unless all-targets measurably helps at the data
+  volume actually available.
+- **Issue:** #21

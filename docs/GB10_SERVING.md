@@ -1,7 +1,7 @@
 # GB10 serving — operating this setup
 
 This is the operating doc for `scripts/gb10_serve.sh` and friends. It
-supersedes nothing in `docs/STAGE_0_AND_1_EXACT.md` — that runbook's own
+supersedes nothing in `docs/history/STAGE_0_AND_1_EXACT.md` — that runbook's own
 heredoc scripts remain valid if you run them literally — but it is a more
 configurable, more checked version of the same Part B2/B3 work, built per
 a later task that specifically asked us not to assume the runbook's example

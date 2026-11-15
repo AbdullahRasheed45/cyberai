@@ -6,7 +6,7 @@ concurrency vs batching, TTFT, inter-token latency, memory headroom. It is
 NOT the brief's sealed cybersecurity capability benchmark
 (`benchmarks/sealed/`), which scores whether a model generation is better
 at security tasks. Nothing here touches that benchmark's scenarios or
-scoring; see `docs/ARCHITECTURE.md` §4.8 for the separation.
+scoring; see `docs/history/ARCHITECTURE.md` §4.8 for the separation.
 
 Every result is a `harness_test` (ran against a controlled/mock endpoint,
 proving the harness's own accounting/error-handling) or a real measurement

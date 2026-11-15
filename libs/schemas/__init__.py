@@ -99,7 +99,7 @@ class AuthzDecision(BaseModel):
 
 
 # Re-exported so every service imports schemas from one place (see
-# docs/ARCHITECTURE.md §2): `from libs.schemas import ServingConfig` etc.,
+# docs/history/ARCHITECTURE.md §2): `from libs.schemas import ServingConfig` etc.,
 # never a locally redefined shape.
 from libs.schemas.benchmark import (  # noqa: E402
     BenchmarkConfig,

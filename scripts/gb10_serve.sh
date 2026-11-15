@@ -6,7 +6,7 @@
 # will correctly report "not GB10" rather than pretending to work).
 #
 # This script supersedes the single-shot serve_smoke.sh heredoc in
-# docs/STAGE_0_AND_1_EXACT.md Part B2 with the configurable version this
+# docs/history/STAGE_0_AND_1_EXACT.md Part B2 with the configurable version this
 # task asked for; it does not edit that doc (CLAUDE.md: follow the runbook
 # exactly as written). Use whichever you prefer on the actual session — if
 # you run the runbook's literal heredocs instead, this script is simply

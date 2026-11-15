@@ -109,7 +109,7 @@ missing wheels") over a silent `docker pull :latest` where possible.
 
 ## The CUTE_DSL_ARCH contradiction (flag for a human decision, not resolved here)
 
-`docs/STAGE_0_AND_1_EXACT.md` / CLAUDE.md directive #8 both say: **"DO NOT
+`docs/history/STAGE_0_AND_1_EXACT.md` / CLAUDE.md directive #8 both say: **"DO NOT
 set `CUTE_DSL_ARCH=sm_121a` (hangs on GB10)."** That was the best
 information available when the brief was written.
 

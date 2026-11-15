@@ -5,7 +5,7 @@ throughput/latency/capacity trade-offs — context length × concurrency ×
 batching — against synthetic, seeded, non-sensitive workloads.
 
 **This is NOT the sealed cybersecurity capability benchmark**
-(`benchmarks/sealed/`, `docs/ARCHITECTURE.md` §4.8), which scores whether a
+(`benchmarks/sealed/`, `docs/history/ARCHITECTURE.md` §4.8), which scores whether a
 model generation is better at security tasks. This harness never touches
 that benchmark's scenarios, scoring, or answer keys. It answers a different
 question: *how much serving capacity does this endpoint actually have, and

@@ -226,7 +226,7 @@ machine you were about to buy. Keep everything.
   comparison either way); the exact library versions; real speeds.
 - The small training file used in the trial proves the pipeline, not real training
   cost. For a realistic speed forecast, add your own verified training examples.
-- Policy questions for you (in `CURRENT_PRODUCT_SPEC.md`): the "park Loop B after two
+- Policy questions for you (in `history/CURRENT_PRODUCT_SPEC.md`): the "park Loop B after two
   failures" rule versus the January deadline; Instruct vs Thinking model comparison.
 
 ## 12. GitHub: branches and pull requests

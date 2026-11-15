@@ -127,7 +127,7 @@ class CurriculumScheduling(BaseModel):
 class CurriculumConfig(BaseModel):
     """`configs/six_domain_curriculum.yaml` — product inventory, not lab claims.
 
-    All six domains must be present (PRODUCT_ALIGNMENT doc); each has exactly
+    All six domains must be present (brief v2.0 §8); each has exactly
     five easy-to-hard levels. `status: planned` never implies an environment
     exists.
     """
