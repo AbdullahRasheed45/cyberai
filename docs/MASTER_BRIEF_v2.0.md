@@ -699,6 +699,7 @@ So the verifier is **versioned and append-only**: it keeps changing, every chang
 | `OWNER_GUIDE_GB10_TRIAL.md` | The trial in plain English |
 | `RENTAL_START_HERE.md`, `ENVERGE_SETUP.md`, `MEASUREMENTS_AND_TRACKING.md` | Trial commands, provider, the tracker |
 | `PENDING_HARDWARE_CHECKS.md`, `DECISIONS_TO_REVISIT.md` | Hardware evidence owed; temporary choices and triggers |
+| `ASTRA_REVIEW_PROMPT.md` | The prompt to hand a reviewer (Astra/Codex) to vet this brief before development |
 | `containers/vllm-gb10/PROVENANCE.md` | Evidence behind the image and flag choices |
 | v1.1–v1.5 briefs (history) | How the design and decisions were reached |
 
