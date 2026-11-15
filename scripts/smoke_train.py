@@ -144,7 +144,7 @@ def main():
     # Lineage guard BEFORE spending training time: Unsloth must not have swapped in
     # a different (e.g. pre-quantised "-bnb-4bit") repository for the pinned one.
     loaded_name = getattr(getattr(model, "config", None), "_name_or_path", MODEL)
-    if loaded_name != MODEL:
+    if str(loaded_name).lower() != MODEL.lower():  # Hub ids ignore case
         fail(f"loaded {loaded_name!r} instead of the pinned {MODEL!r}; lineage would break")
 
     # dtype policy: bf16 compute weights; 4-bit packed (uint8) linears only in qlora_4bit;

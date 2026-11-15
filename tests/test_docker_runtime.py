@@ -272,3 +272,34 @@ def test_cli_check_fails_until_sourced(tmp_path):
     )
     ok = run({**base, "DOCKER_GPU_MODE": "runtime", "DOCKER_NETWORK": "host"})
     assert ok.returncode == 0
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals; runs in Linux CI")
+def test_second_sigterm_does_not_interrupt_cleanup():
+    """`uv run` forwards SIGTERM on top of the process-group signal: two deliveries."""
+    script = (
+        "import os, signal, time\n"
+        "from rental.orchestrate import Terminated, install_termination_handler\n"
+        "install_termination_handler()\n"
+        "try:\n"
+        "    os.kill(os.getpid(), signal.SIGTERM)\n"
+        "    time.sleep(5)\n"
+        "except Terminated:\n"
+        "    os.kill(os.getpid(), signal.SIGTERM)  # second delivery during cleanup\n"
+        "    time.sleep(0.2)\n"
+        "    print('CLEANUP_FINISHED')\n"
+    )
+    out = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=20)
+    assert "CLEANUP_FINISHED" in out.stdout
+
+
+def test_lineage_comparison_ignores_repo_id_case():
+    from rental.freeze import validate_lineage
+
+    assert (
+        validate_lineage(
+            "unsloth/qwen3-30b-a3b-instruct-2507", "unsloth/Qwen3-30B-A3B-Instruct-2507", "a" * 40
+        )
+        == []
+    )
+    assert validate_lineage("someone/else", "unsloth/Qwen3-30B-A3B-Instruct-2507", "a" * 40)

@@ -446,6 +446,12 @@ def install_termination_handler():
     import signal
 
     def handler(signum, frame):
+        # Disarm first: the tracker signals the whole process group AND `uv run`
+        # forwards the signal, so it can arrive twice. A second delivery must not
+        # interrupt the cleanup/export that the first one started.
+        for other in ("SIGTERM", "SIGHUP"):
+            if hasattr(signal, other):
+                signal.signal(getattr(signal, other), signal.SIG_IGN)
         raise Terminated(f"received signal {signal.Signals(signum).name}")
 
     for name in ("SIGTERM", "SIGHUP"):

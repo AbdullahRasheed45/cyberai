@@ -189,7 +189,9 @@ def test_base_load_kwargs_omit_unsupported_exact_name_flag():
 
     kw = module.base_load_kwargs(old_from_pretrained, "m", "c" * 40, 2048, "qlora_4bit", _FakeTorch)
     assert "use_exact_model_name" not in kw  # the post-load name check still guards lineage
-    assert "loaded_name != MODEL" in Path("scripts/smoke_train.py").read_text(encoding="utf-8")
+    assert "loaded_name).lower() != MODEL.lower()" in Path("scripts/smoke_train.py").read_text(
+        encoding="utf-8"
+    )
 
 
 def test_reload_uses_training_precision():
