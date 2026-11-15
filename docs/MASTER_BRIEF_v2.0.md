@@ -1,11 +1,12 @@
 # Autonomous, Self-Improving Cybersecurity AI — Master Brief and Build Specification
 
-**Version:** 2.0 · **Date:** 2026-11-15 · **Status:** the single governing document; awaiting owner sign-off on the items in §12.
+**Version:** 2.0 · **Date:** 2026-11-15 · **Status:** the single governing document; awaiting owner sign-off on the items in §17.
 **Supersedes:** every earlier brief (v1.0–v1.5), the stage runbook, the build plan and the architecture document. Their content that still holds is folded in here; they remain in git history.
 
-**What this document is.** Two things in one file:
-- **Part A (§1–§6)** — what we are building, the rules, what was kept and changed from the earlier briefs and why, the system design, and the data contracts.
-- **Part B (§7–§11)** — the build specification: every stage as an ordered list of numbered tasks. Each task names the files to create, the exact behaviour, the tests that must pass and the command that proves it is done. A coding agent implements the project by doing the tasks in order.
+**What this document is.** One file, three parts:
+- **Part A (§1–§7)** — what we are building, the twelve rules, what was kept and changed from the earlier briefs and why, the system design, the data contracts, and the cheat-proof verifier specification.
+- **Part B (§8–§17)** — the build specification: every stage as an ordered list of numbered tasks, each naming the files, the exact behaviour, the tests that must pass and the command that proves it done. A coding agent implements the project by doing the tasks in order. Plus the budget arithmetic, the realistic calendar and the open owner decisions.
+- **Capability ladders (§18–§20)** — the offensive (lead) and defensive capabilities the system is built toward, each with the verifier that proves it and an honest ceiling; the crash-oracle domain; the Mythos-style agent harness and tools (including reverse engineering); and the **evolving, property-based verifier that accommodates novel / zero-day attacks** (§20.4).
 
 **Honest status.** Stage 0 is done. Stage 1A (the hardware trial) is built and tested offline and has never run on a GPU. Everything after that is specified here and not yet built.
 
@@ -502,7 +503,7 @@ Canaries: `data/canaries/general_v1.jsonl`, 100 fixed general reasoning/coding q
 
 ## 12. Phase 2 — the build-out (only after the Stage 2B proof)
 
-Phase 2 reuses every Phase-1 part unchanged: the same loop, verifier design, cheat catalogue, dataset, gate, registry and cycle. Each stage adds a task class or a domain, and **every new family and every new checker passes the admission rule of §7.3 before it can be scheduled or trained on.** The generation ladder continues: defence and Linux (Stage 3) produce `gen_0004`+; the remaining domains (Stage 5b) continue from there.
+The offensive and defensive capabilities each stage adds are specified as ladders in §18–§20 (what the verifier proves, the realistic ceiling, the stage). Phase 2 reuses every Phase-1 part unchanged: the same loop, verifier design, cheat catalogue, dataset, gate, registry and cycle. Each stage adds a task class or a domain, and **every new family and every new checker passes the admission rule of §7.3 before it can be scheduled or trained on.** The generation ladder continues: defence and Linux (Stage 3) produce `gen_0004`+; the remaining domains (Stage 5b) continue from there.
 
 ### Stage 3 — Defence, recovery, and Linux
 **Goal:** the model defends using the attacks it can now run, verifies recovery, and gains a second domain — without forgetting web.
@@ -510,7 +511,7 @@ Phase 2 reuses every Phase-1 part unchanged: the same loop, verifier design, che
 - **T3.1 — Detection tasks on the kit's own telemetry.** Every kit session already writes a labelled evidence log (attack entries versus benign-walk entries). Add a `write_detection(rule)` tool and a `detection` task class: the agent, shown the telemetry schema, writes a Sigma rule; `detection_verifier.acceptance.evaluate_untrusted_candidate` scores it against the labelled log (true positives up, false positives penalised, incidental-only and overfit rules fail). This verifier and its assurance already exist. *Admission:* a known-good rule verifies; the existing trivial/overfit/incidental controls fail.
 - **T3.2 — Remediation and recovery.** The kit already patches and retests on `finish` (§5.5 `defence`). Add a `remediation` task where the agent proposes the patch (choosing among safe, generated patch options the kit exposes) and the verifier requires attack-blocked **and** legitimate-use-works **and** healthy. Add the recovery check: after a destructive attack case, the kit restores its snapshot and the verifier confirms restored state equals the pre-attack hash. (This absorbs the old Stage 4.)
 - **T3.3 — The Linux domain.** `lab/kit/families/linux/`: targets are unprivileged processes inside a locked-down container (no network, non-root, read-only root filesystem, dropped capabilities, a seeded flaw such as a world-writable service file, a sudo misconfiguration, or a weak file permission). The tool is `shell` (one command as the unprivileged user, output captured, timeout). The win is reading a flag file readable only via the seeded flaw; the shadow proof is the flag value matching plus the controller observing the privileged read in its wrapper. Container hardening and the K18 breakout cheater are mandatory. Five families at levels 1–2 first.
-- **T3.4 — Live ownership verification and the outside-target playbook.** Build `engine/authz/ownership.py` (DNS or HTTP challenge on the target, recorded) and require it plus a human-signed token before any non-lab target. Write the scope-breach response procedure (`docs/SCOPE_BREACH_IR.md`). Required before any target outside the lab, pilot included; nothing in Phase 1 or 2a needs it, so it is built here.
+- **T3.4 — Live ownership verification, disclosure and the outside-target playbook (§18.1).** Build `engine/authz/ownership.py` (DNS or HTTP challenge on the target, recorded) and require it plus a human-signed token before any non-lab target. Write the coordinated-disclosure procedure (`docs/SECURITY_DISCLOSURE.md`: a fixed timeline, human triage before any report leaves, hashed commitments for unpublished findings) and the scope-breach response procedure (`docs/SCOPE_BREACH_IR.md`). All required before any target outside the lab, pilot included; nothing in Phase 1 or 2a needs them, so they are built here.
 - **Exit:** detection, remediation and recovery verifiers pass assurance; Linux families admitted; a generation improves on the sealed set across web and Linux with no canary regression; ownership check blocks an unproven target.
 
 ### Stage 5a — The fuller engine (optional refinements, each measured)
@@ -593,7 +594,90 @@ Loss falls but the exam is flat → too little diverse data; build families, not
 | D-6 | Confirm the 30 June milestone as defined above, or add a second builder | Before Stage 3 |
 | D-7 | Confirm the *(proposed)* gate and curriculum numbers in §14 | Before the first candidate evaluation |
 
-## 18. Document index
+## 18. Offensive capability ladder — the lead track
+
+Offence is the lead track and the most-resourced part of this project, for two reasons: it is where the hardest reasoning lives, and every offensive success manufactures the labelled ground truth the defensive track (§19) learns from. The reference point for *what good looks like* is Anthropic's Mythos Preview (a frontier model that finds and exploits zero-days across operating systems and browsers). We build toward the same **categories** of capability, by the same **method** Mythos relies on — an agent driven by a deterministic oracle, run many times over a target — but on a 30B specialist, not a frontier model.
+
+**Method copied from Mythos; capability scaled to our hardware.** We copy Mythos's methodology wholesale — a deterministic oracle, an agentic scaffold, and many cheap runs over a target (§20) — and apply it offence-first across every category below. One difference is stated once because the project's gates depend on it: our base is a 30B specialist, not a frontier model, so on *novel* exploit development against hardened, unseen software we aim for strong specialist results within our verifiers' reach rather than frontier parity. Where the oracle is perfect (memory-safety, §20) that gap is smallest. Everything else — the full category set, the scaffold, the tools — we take directly from how Mythos works.
+
+Each capability is built the same way: its verifier exists and is admitted first (§7.3); offence generates verified wins and the matching telemetry; the agent is run many times (best-of-N, §20 scaffold) to raise the aggregate hit-rate; fine-tuning then sharpens and cheapens what already works. Categories are introduced in curriculum order — easiest, cleanest-oracle first.
+
+| # | Offensive capability (Mythos does all of these) | What the verifier/oracle proves | Our realistic version | Stage |
+|---|---|---|---|---|
+| O1 | **Web & application flaws** — authorisation bypass, injection, auth/2FA bypass, logic bugs, DoS | Two independent proofs on a generated target (§7); the claim hashes to the planted secret and the out-of-band log shows the forbidden action | Strong — this is the existing kit; the fullest, best-covered category | 2A |
+| O2 | **Multi-bug chaining** — combine 2–4 weaknesses to reach the objective | The final objective falls *and* the evidence log shows each step | Real at small scale (curriculum Levels 3–4) | 2B / 3 |
+| O3 | **Memory-safety / crash discovery** — out-of-bounds, use-after-free, overflow | A sanitizer (ASan/UBSan) crash under a fuzzing harness — a *perfect* oracle, the same one Mythos leans on | The category with the smallest gap to frontier, because the oracle is free and un-foolable (§20) | 3 / 5a |
+| O4 | **Exploit / proof-of-concept development** — turn a bug into a working demonstration | The PoC reproduces the crash/control condition under the harness; "exploit-as-triage" proves reachability | Reachable on the crash-oracle domain and our web targets; limited, not frontier-grade, on novel hardened software | 5a |
+| O5 | **N-day instance finding** — given a known bug class, find instances in fresh targets | The known-class check fires on the new target | Genuinely useful and achievable; a prime specialist strength | 3 / 5a |
+| O6 | **Reverse engineering** — recover structure/pseudocode from binaries, firmware and mobile apps, then audit it | Findings re-checked against the binary's real behaviour under the harness; crash/behaviour oracle where available | Achievable as *analysis + auditing* with the right tool harness (§20, `rea`); exploit-dev on RE targets inherits the O4 ceiling | 5b |
+| O7 | **Cryptographic-use weaknesses** — misuse of TLS/crypto primitives in owned implementations | A deterministic check (e.g. a forged token the real verifier accepts, a distinguisher that wins) | Narrow and verifier-bound; promising because the oracle is clean | 5a / 5b |
+| O8 | **Reconnaissance & mapping** — enumerate a target's routes, services, identities, trust boundaries | Coverage measured against the generator's ground-truth model of the target | The foundation every other capability builds on; strong | 2A onward |
+
+Across all of them the containment rule is absolute: every offensive action stays inside the cage (§7.1 principle 8) — bounded requests to one loopback target, or commands inside a no-network container — and its output is only ever an observation, never something the verifier trusts. Offensive reach toward *real* (non-lab) software additionally requires live ownership verification and a coordinated-disclosure process (§18.1), neither of which may be skipped.
+
+### 18.1 Before any non-lab target — the disclosure gate
+Mythos ships only to vetted partners under coordinated disclosure precisely because real-software bug-finding is dual-use. If this system is ever pointed at software outside the owned lab, the following are mandatory and are built in Stage 3 (T3.4), not improvised: verified proof of ownership or written authorisation of the exact target; a human-signed token bound to the action; a coordinated-disclosure procedure (`docs/SECURITY_DISCLOSURE.md`) with a fixed timeline and human triage before any report leaves; and the scope-breach playbook. No autonomous offence ever runs outside the lab.
+
+## 19. Defensive capability ladder
+
+Defence is trained on the exact ground truth offence produces, on the same scenarios. It is deliberately second in *lead* but first in *reachability*: Mythos's own results show even a frontier model is "far better at identifying and fixing vulnerabilities than at exploiting them," so these are the capabilities where our 30B specialist is most competitive and where the verified loop is cleanest.
+
+| # | Defensive capability | What the verifier proves | Our realistic version | Stage |
+|---|---|---|---|---|
+| D1 | **Detection engineering** — write rules that catch the attack in telemetry | True positives up, false positives penalised; incidental-only and overfit rules fail assurance (the existing `detection_verifier`) | Strong — cleanest oracle, already built | 3 |
+| D2 | **Triage & severity** — rate, deduplicate, reproduce a finding | Scored against the generator's known severity and identity | Very reachable; low raw-reasoning demand | 3 |
+| D3 | **Remediation / patching** — fix the hole without breaking the service | Attack now blocked **and** legitimate use still works **and** healthy (the remediation retest) | Strong — a prime specialist strength, as Mythos's patch > exploit result predicts | 3 |
+| D4 | **Recovery** — restore a damaged target to known-good | Restored state hash equals the pre-attack hash | Clean and deterministic | 3 |
+| D5 | **Monitoring-tool interpretation** — read Suricata/Zeek/Wazuh output and act on it | The derived finding matches ground truth | Added per domain when that telemetry is needed | 5a |
+
+The design intent stands: **offensive-led in training, defence as the durable product strength.** Offence is where we invest the most reasoning and the most of the capability ladder; defence is where the measurable, dependable, lower-liability capability accrues — and both improve on the same verified experience.
+
+## 20. The crash-oracle domain and the agent harness
+
+### 20.1 The crash-oracle domain (the highest-leverage offensive investment)
+The single biggest thing that raises offensive reach on our budget is targeting bug classes with a **perfect oracle** — exactly why Mythos focuses on memory safety. We add a domain whose targets are instrumented with **sanitizers (ASan/UBSan)** behind **fuzzing/replay harnesses** (OSS-Fuzz-style entry points), where a crash is ground truth. Properties:
+- The verifier cannot be fooled and costs nothing to run (a crash is a crash), so the offensive agent can attempt real bug-finding and exploit-*reachability* learning honestly and at scale.
+- It is graded on a ladder (basic crash → control of the crash → control-flow influence), the same shape Mythos is measured on, so progress is objective.
+- It makes O3/O4/O6 trainable where web-style hand-built verifiers could not reach.
+Build it as a `lab/kit/families/native/` domain in Stage 3–5a, each family admitted by the §7.3 rule (reference crash, benign input, cheater suite including the sandbox-escape cheater).
+
+### 20.2 The agent harness — the Mythos-style scaffold
+The scaffold is where a lot of capability actually lives; a strong harness on a modest model beats a weak harness on a strong one. We adopt Mythos's proven structure as concrete, staged harness tasks:
+- **Rank, then focus.** The agent scores each file/target/route 1–5 for likelihood before spending effort; work goes in priority order.
+- **One target per agent.** Bounded context per run (also fits the token budget).
+- **Best-of-N.** Many cheap parallel attempts per scenario; keep the verified hits. (This also produces the winning/losing pairs for preference learning and the groups for GRPO.)
+- **A filter agent.** A final pass asks "is this finding real and interesting?" before anything is accepted.
+- **Exploit/PoC as triage.** Demonstrating reachability is stronger evidence than reasoning about it.
+- **Plan → act → reflect**, with a scratchpad and retrieval of verified facts (Loop A), so reasoning compounds across steps and sessions.
+Every harness addition is still inside the cage and still passes the cheater suite before use (§7.2 K-items).
+
+### 20.3 Tools, including reverse engineering
+Tools grow from minimal-and-general to richer, each wrapped so output is structured and the cage holds:
+- **Web:** the bounded `http_request` tool (built).
+- **Native/Linux:** a sandboxed `shell` inside a no-network container; the sanitizer/fuzz harness of §20.1.
+- **Reverse engineering:** **`rea`** (github.com/morluto/rea, MIT) is a strong candidate tool harness — an MCP server exposing decompilers (Ghidra/IDA/Hopper), format parsers (ELF/PE/Mach-O/.NET/APK/WASM/firmware), JS/Electron analysis and runtime capture, and it can build RL environments from recorded behaviour, which fits our verified loop. **Caveats before adopting:** vet the project first (its star/fork ratio is unusual; commercial back-ends like IDA must be licensed); its runtime capture *runs the target with host permissions*, so it may run **only inside the lab**, against owned or authorised binaries, never on the engine; wrap its output as plain observations the verifier never trusts. Treated that way, it is the fastest route to the O6 reverse-engineering capability without building a decompiler stack ourselves.
+
+### 20.4 The evolving verifier — accommodating novel (zero-day) attacks
+A fixed list of attack-specific checks can only ever confirm attacks it was built for, which would cap the system at known techniques. To accommodate **novel** attacks — the zero-day case — the verifier is built on two ideas, and it changes over time. Neither idea ever uses an LLM to judge (that would reintroduce reward hacking); growth is deterministic code plus human review.
+
+**1. Verify by the security property violated, not by the attack technique.** This is the mechanism that lets a *fixed* oracle catch an attack it has never seen — and it is exactly how Mythos finds decades-old zero-days. The oracle watches for a *consequence* that should be impossible, whatever method produced it:
+- **Memory-safety:** a sanitizer (ASan/UBSan) fires on *any* out-of-bounds or use-after-free, including a brand-new one. The oracle does not know the bug; it knows memory was corrupted (§20.1).
+- **Authorisation/state invariants:** "a principal reached data or a privilege it is not entitled to," decided from the generator's ground-truth ownership model (§7.1 principle 4). A novel bypass that crosses the boundary still trips it.
+- **Service/integrity invariants:** the target crashed, a protected field changed, an exfiltration marker was reached, a privilege level rose.
+- **Differential/metamorphic oracles:** behaviour diverges from a reference (a patched build, a spec, an equivalent input that should behave identically).
+Because these are defined on **what must never happen** rather than on how it happens, a novel exploit that violates the property is verified without the verifier having anticipated the technique. The honest scope: this works wherever we can *instrument the target with a property oracle* — our generated lab targets and any real target we can run under a sanitizer/harness. It does not verify arbitrary claims about systems we cannot instrument.
+
+**2. A candidate bank that grows the verifier (human-paced, append-only).** When an agent produces something that looks like a win but **no** current oracle — property or specific — can confirm it, the attempt is **escrowed in the candidate bank: never rewarded, never trained on, never deleted.** From there:
+- An LLM may *advise* only — cluster and triage the bank, suggest what property a cluster seems to violate — but never score.
+- When a cluster is understood, a human writes a new deterministic checker (ideally a new property oracle, so it generalises), runs it through the full assurance + cheater suite (§7), versions it (`VERIFIER_VERSION` bumps), and re-runs the family admission rule.
+- Only then do the matching escrowed candidates graduate into verified training data, and the new class enters the curriculum.
+So the verifier is **versioned and append-only**: it keeps changing, every change is assured before use, and nothing is ever lost — a novel behaviour the system cannot yet verify is captured, not discarded, and converted into new verifier coverage.
+
+**Honest limit (unchanged from the thesis).** The autonomous loop discovers and learns *within the current verifier's reach*; property oracles widen that reach to novel attacks **within an instrumented domain**, and the candidate bank widens it further over time — but extending the verifier to a genuinely new domain is human-paced engineering, and that, not GPU time, is the real rate-limiter. This is the "staircase, not exponential" limit stated honestly: the system accommodates novelty steadily and safely, never magically.
+
+**What this buys us, honestly.** A system that leads with offence across the full category set Mythos demonstrates — web and application flaws, chaining, memory-safety crash discovery, PoC development, N-day finding, reverse engineering, crypto-use and recon — with an evolving, property-based, assured verifier that accommodates novel attacks within instrumented domains and grows to cover new ones, and with defence as the dependable product strength trained on the same ground truth. Not a frontier zero-day engine; a verified, honest, steadily sharpening one.
+
+## 21. Document index
 | Read | For |
 |---|---|
 | **This document (v2.0)** | Everything: the system, the cheat-proofing, every build task, the calendar |
