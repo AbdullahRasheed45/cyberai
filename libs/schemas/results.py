@@ -47,7 +47,7 @@ class ServingThroughputResult(BaseModel):
 
 
 class TrainSmokeMetrics(BaseModel):
-    """Payload shape for the Unsloth LoRA smoke test (`scripts/train_smoke.py`)."""
+    """Payload shape for the Unsloth LoRA smoke test (`scripts/smoke_train.py`)."""
 
     model_config = ConfigDict(extra="forbid")
 

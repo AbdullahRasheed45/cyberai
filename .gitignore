@@ -6,3 +6,7 @@ models/
 *.log
 mlruns/
 data/
+artifacts/
+runs/
+*.sqlite
+*.sqlite-journal

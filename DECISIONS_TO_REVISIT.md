@@ -44,6 +44,30 @@ This file tracks choices made because of a **current constraint** that will chan
 
 ---
 
+### R-005 — GB10 image/backend/LoRA-gate choices are provisional, unverified on real hardware
+- **Decision (for now):** `containers/vllm-gb10/IMAGE.txt` pins the official
+  NVIDIA NGC image (`nvcr.io/nvidia/vllm:26.10-py3`) as the primary attempt,
+  with a community image (`eugr/spark-vllm-docker`) pinned in
+  `FALLBACK_IMAGE.txt`; `configs/serving.yaml` defaults
+  `attention_backend: "TRITON_ATTN"` and `require_lora_fp8_verified: false`.
+  All of this is based on research (see `containers/vllm-gb10/PROVENANCE.md`),
+  not a hardware run — upstream vLLM has **no merged** sm_121/GB10 support
+  (PR vllm-project/vllm#31740, closed unmerged) as of 2026-11-11.
+- **Why now:** no GB10 session was available to this work (rule: do not
+  rent paid resources without explicit authorisation); the choices had to
+  be made from documentation/community evidence instead of measurement.
+- **Trigger:** EITHER (a) a real GB10 session runs the checks in
+  `docs/PENDING_HARDWARE_CHECKS.md`, OR (b) vLLM/NGC ship merged, documented
+  sm_121 support in a stable release (re-check
+  https://github.com/vllm-project/vllm/pull/31740 and its successors).
+- **Action on trigger:** run every row in `docs/PENDING_HARDWARE_CHECKS.md`;
+  update `PROVENANCE.md` with real `EvidenceKind.HARDWARE` results in place
+  of the current research-only claims; if the official NGC image works,
+  consider dropping the fallback; if sm_121 support merges upstream,
+  re-evaluate whether the Triton-attention-backend workaround and the
+  LoRA/FP8 refusal are still needed.
+- **Issue:** #9
+
 ## Trigger group: `revisit-on-dgx` / lab-available (hardware-dependent foundation work)
 
 ### R-004 — Stage 1 foundation (schemas, config, tooling, CI) built with no GB10/lab access
@@ -60,7 +84,7 @@ This file tracks choices made because of a **current constraint** that will chan
   and no lab laptop was set up at the time.
 - **Trigger:** a GB10 session (rented or owned) or the lab laptop becomes
   available.
-- **Action on trigger:** run `docs/STAGE_0_AND_1_EXACT.md` Part B (serving
+- **Action on trigger:** run `docs/history/STAGE_0_AND_1_EXACT.md` Part B (serving
   smoke test, Unsloth smoke test, throughput measurement) and the lab state
   machine/WireGuard checks on the real hardware; replace every `LOCAL`
   evidence claim this foundation produced with a `HARDWARE` one before
@@ -75,6 +99,7 @@ This file tracks choices made because of a **current constraint** that will chan
 - **Trigger:** Stage 1.5 measurement runs; or a ~100-trajectory pilot SFT result exists.
 - **Action on trigger:** Apply the two-way revision rule (lower the bar only if a ~100-pilot beats baseline; park Loop B if a full round fails twice). **Do not silently edit the pre-registered numbers** — revise only per the rule, and log the revision here.
 - **Issue:** #6
+- **Cross-reference (Astra finding 29, 15 Nov 2026):** `docs/MASTER_BRIEF_v2.1.md` §7.8/D-3 **proposes** replacing "park Loop B for a year on the second failure" with "diagnose and suspend automatic promotion; continue controlled first-SFT research toward the January target." This is a PROPOSED amendment, not yet owner-approved — the rule above, as written, is what governs until the owner confirms D-3.
 
 ---
 
@@ -83,3 +108,114 @@ This file tracks choices made because of a **current constraint** that will chan
 2. `gh issue create --title "Revisit: <title>" --body "See DECISIONS_TO_REVISIT.md R-xxx. Trigger: <condition>." --label "<trigger-label>"`
 3. Put the issue number in the entry.
 4. When the trigger fires, resolve each issue and note the outcome here before closing.
+
+### R-006 — Narrow live web target for the first rental
+- **Decision:** Use the resettable standard-library HTTP authorization-boundary
+  target and noisy-context development profile to verify rental integration.
+- **Why now:** A bounded complete workflow is required before the first GB10 trial;
+  the full offensive platform remains gated on the web learning proof.
+- **Trigger:** separate lab hardware is available and the first GB10 trial completes.
+- **Action:** add independently versioned application families and meaningful
+  multi-step trajectories, measure physical isolation/resources, and establish
+  fresh restricted acceptance data. Retain this target as a regression control.
+  Do not count its background requests as extra independent skill wins.
+- **Issue:** #14 (`revisit-on-dgx`).
+
+## Trigger group: `revisit-on-measurement` — first GB10 lifecycle run
+
+### R-007 — Lifecycle thresholds and reload tolerance set before any GB10 measurement
+- **Decision (for now):** `rental.orchestrate` waits up to `SERVE_READY_TIMEOUT_S=1800`
+  for vLLM, requires memory to return within `RELEASE_MARGIN_GB=2.0` of the pre-serve
+  baseline within `RELEASE_WAIT_S=60` (host `/proc/meminfo` on unified memory, where
+  `nvidia-smi` memory is N/A); the inference grid defaults to contexts 8000,16000 x
+  concurrency 1,8,32 at 600 s per request, with failed cells recorded rather than
+  aborting training; `smoke_reload.py` accepts reloaded logits as `exact`, or as a
+  labelled `kernel_tolerant` match (same top token and closer to the trained model than
+  the base) when bf16 kernel-path differences exceed atol/rtol. The tensor-level
+  saved-vs-reloaded adapter check stays strict. LoRA smoke learning rate is 2e-4
+  (`configs/training.yaml`).
+- **Why now:** none of these could be measured without GB10 access; the previous values
+  (4-minute readiness, 1 GB margin with no settle, abort on any slow request, 1e-3 logit
+  equality across kernel paths) would likely have failed a correct run.
+- **Trigger:** the first completed GB10 lifecycle run.
+- **Action on trigger:** derive each default from the recorded run (observed load time,
+  release curve, request latencies, reload logit diffs). If `reload_result.json` shows
+  `logit_match: exact`, tighten the criterion back to exact-only.
+- **Issue:** #16
+
+### R-008 — Training precision: 4-bit QLoRA default, bf16 only as a measured comparison
+- **Decision (owner, 13 Nov 2026):** the frozen base is loaded in 4-bit NF4 for LoRA
+  training (`precision: qlora_4bit`), quantised on load from the same pinned BF16
+  repo/commit so adapter lineage is unchanged. bf16 runs only as a comparison
+  (`TRAIN_PRECISION=bf16`); FP8 training is not used. Serving stays on the official FP8
+  checkpoint of the same weights.
+- **Why now:** QLoRA needs ~17 GB of weights versus ~61 GB for bf16, leaving more of the
+  128 GB unified memory for context and batch; the owner will switch to bf16 only if it
+  measures clearly faster.
+- **Trigger:** the trial's qlora_4bit and bf16 training cells have both completed.
+- **Action on trigger:** compare `steady_state_tok_s`, `steady_state_seconds_per_step`
+  and `train_peak_mem_GB`; change the default only on clearly better measured
+  throughput with memory headroom, and record the numbers here.
+- **Issue:** #17
+
+## Owner scope decisions
+
+### R-009 — Qwen3-30B-A3B MoE only (dense fallback removed)
+- **Decision (owner, 13 Nov 2026):** Qwen3-30B-A3B-Instruct-2507 is the only model. The
+  Qwen3-14B dense fallback (brief §4.2) was removed from `configs/serving.yaml`, the
+  serving schema, renderer and CLI. "2507" is the July 2025 release, the newest
+  Qwen3-30B-A3B text model on the Hub as of 13 Nov 2026 (checked via the public HF API);
+  it is the model for the 15 January 2027 fine-tune target.
+- **Trigger:** the GB10 trial shows the MoE model cannot be served or trained.
+- **Action on trigger:** report the evidence to the owner; an alternative model is an
+  owner decision, never an automatic fallback.
+- **Cross-reference (Astra finding 29, 15 Nov 2026):** this entry pins Instruct-2507 as the model; it does not forbid *comparing* it with Thinking-2507. `docs/MASTER_BRIEF_v2.1.md` T2A.14 runs that comparison and is consistent with this decision — switching the pinned model on the comparison's result would be a new, separate owner decision, not an automatic consequence of T2A.14.
+- **Issue:** #18
+
+## Trigger group: `revisit-on-dgx` — provider sandbox
+
+### R-010 — Docker flags measured per machine (Enverge sandbox: no `--gpus all`)
+- **Decision (for now):** Enverge's SSH session is an unprivileged container sandbox
+  with Docker-in-Docker; its NVIDIA runtime is in no-cgroups mode, so `--gpus all`
+  fails. Every container the project starts takes its GPU/IPC/ulimit/network flags from
+  `rental/docker_runtime.py` (`DOCKER_*` env), measured by
+  `scripts/rental/docker_runtime_setup.py` and sourced from
+  `artifacts/docker_runtime/docker_env.sh`. Not being root, the page-cache drop is
+  recorded as `not_permitted`.
+- **Why now:** the purchase-gate trial runs on a rented Enverge GB10.
+- **Trigger:** the physical DGX Spark is owned, or a different provider is used.
+- **Action on trigger:** run the setup script on the new machine (an owned DGX is
+  expected to select the standard defaults); remove Enverge-specific runbook notes.
+- **Issue:** #19
+
+## Trigger group: `revisit-on-measurement` — Stage 2 start
+
+### R-011 — Trial-era packages live outside the `services/` layout
+- **Decision (for now):** the Stage-1 trial code is in top-level packages (`rental/`,
+  `detection_verifier/`, `lab/web_workflow/`); `services/*` are empty placeholders, so
+  the layered `api/domain/infra` shape in `docs/history/ARCHITECTURE.md` is not yet followed.
+- **Why now:** the priority was a tested trial pipeline before the hardware decision;
+  building service shells with nothing behind them would have been ceremony.
+- **Trigger:** Stage 2A begins (trial complete, purchase decided).
+- **Action on trigger:** build `verifier_service` to the ARCHITECTURE shape with
+  `detection_verifier` as its domain core and its isolation/acceptance as infra; keep
+  `rental/` as a trial tool outside `services/`; keep `lab/` on the lab machine.
+- **Conflict, unresolved (Astra finding 29, 15 Nov 2026):** `docs/MASTER_BRIEF_v2.1.md` §3 C-2 PROPOSES a *permanent* replacement of the 16-network-service design with one Python application (`engine/`) and instructs Stage 2A (task T2A.1) to delete `services/*` outright, not populate it. That is not compatible with this entry's "action on trigger" above. Until the owner confirms C-2, this entry — not C-2 — governs: do not delete `services/*` as a side effect of starting Stage 2A. If the owner confirms C-2, this entry's action is superseded and should be closed as such, not silently reinterpreted.
+  Preserve the import rules (lab imports nothing from the engine; no LLM in gate code).
+- **Issue:** #20
+
+### R-012 — Attention-only LoRA by default; expert projections as a comparison
+- **Decision (for now):** `configs/training.yaml target_set: attention` trains adapters on
+  q/k/v/o only (192 modules, ~13M parameters, ~27 MB). The expert projections
+  (gate/up/down_proj) are excluded by default. `TRAIN_TARGET_SET=all` runs the comparison.
+- **Why now:** computed from the pinned model config, all seven targets = 18,624 modules /
+  ~844M parameters / ~1.7 GB, 98% of it inside the 128 experts where each adapter sees only
+  ~6% of tokens (8 of 128 active). A ~100-example pilot gives each expert adapter ~37,000
+  tokens — far too few to learn. Attention-only is trained by every token and is also the
+  adapter shape most likely to serve correctly on the quantised model.
+- **Trigger:** the trial's attention-only and all-target cells both complete (T1A.6); and
+  again once verified training data is plentiful.
+- **Action on trigger:** compare tokens/sec, peak memory and (once eval exists) sealed-set
+  score at equal data; keep attention-only unless all-targets measurably helps at the data
+  volume actually available.
+- **Issue:** #21

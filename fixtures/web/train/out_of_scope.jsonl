@@ -1,0 +1,1 @@
+{"Method": "GET", "UriPath": "/home", "QueryString": "ref=1", "UserAgent": "sqlmap/1.7 ' OR '1'='1", "SourceIp": "10.0.2.1", "Host": "shop.example", "Body": ""}

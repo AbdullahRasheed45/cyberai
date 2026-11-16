@@ -13,8 +13,8 @@ format:
 # This is what CI runs; see docs/EXECUTION_ENVIRONMENTS.md for what cannot.
 check: lint test
 serve-smoke:
-	bash scripts/serve_smoke.sh
+	bash scripts/gb10_serve.sh smoke-test gb10_cloud hardware
 train-smoke:
-	bash scripts/train_smoke.sh
+	bash scripts/run_smoke.sh
 bench:
-	uv run python scripts/measure_throughput.py
+	uv run python scripts/measure_throughput.py --host-env gb10_cloud --evidence hardware

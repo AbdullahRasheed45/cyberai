@@ -1,0 +1,258 @@
+{
+  "version": 1,
+  "acceptance": false,
+  "generator_disjoint": false,
+  "capture_note": "GET Body=\"\" is explicit synthetic captured-empty; missing POST payload remains invalid",
+  "records": [
+    {
+      "scenario_id": "challenge-behaviour_absent-1",
+      "template_family": "control",
+      "split": "challenge",
+      "label": "behaviour_absent",
+      "file": "fixtures/web/challenge/behaviour_absent.jsonl",
+      "line": 1,
+      "record_sha256": "0be2b5d16192ba88963202e2feb3ea0fa159af2e9f40d450c02631adb9ade5af",
+      "source": "public hand-authored archive fixture"
+    },
+    {
+      "scenario_id": "challenge-behaviour_absent-2",
+      "template_family": "control",
+      "split": "challenge",
+      "label": "behaviour_absent",
+      "file": "fixtures/web/challenge/behaviour_absent.jsonl",
+      "line": 2,
+      "record_sha256": "ee020006454475a055c467f290f0819db260b4cd5d0fc48650b447ee3abab280",
+      "source": "public hand-authored archive fixture"
+    },
+    {
+      "scenario_id": "challenge-behaviour_absent-3",
+      "template_family": "or-equality",
+      "split": "challenge",
+      "label": "behaviour_absent",
+      "file": "fixtures/web/challenge/behaviour_absent.jsonl",
+      "line": 3,
+      "record_sha256": "c5be4cbbff26c09205fd05c38fbcc13c8878487b3cecbd8592caf3f385366fa9",
+      "source": "public hand-authored archive fixture"
+    },
+    {
+      "scenario_id": "challenge-behaviour_absent-4",
+      "template_family": "control",
+      "split": "challenge",
+      "label": "behaviour_absent",
+      "file": "fixtures/web/challenge/behaviour_absent.jsonl",
+      "line": 4,
+      "record_sha256": "e6ef55caf30a7ef6878b908d8ada9d1714df3f6ea2ccb7a6bd1a4d29b29857dc",
+      "source": "public hand-authored archive fixture"
+    },
+    {
+      "scenario_id": "challenge-behaviour_present-1",
+      "template_family": "or-equality",
+      "split": "challenge",
+      "label": "behaviour_present",
+      "file": "fixtures/web/challenge/behaviour_present.jsonl",
+      "line": 1,
+      "record_sha256": "10710cd3706a32761f367d9f7d19945ba5416a108f040b9b9806b99a81fd2f35",
+      "source": "public hand-authored archive fixture"
+    },
+    {
+      "scenario_id": "challenge-behaviour_present-2",
+      "template_family": "drop-table",
+      "split": "challenge",
+      "label": "behaviour_present",
+      "file": "fixtures/web/challenge/behaviour_present.jsonl",
+      "line": 2,
+      "record_sha256": "b4f6d39e73dd4d78ddd354d21fe348d6cbb5cc1b147c45bc2aec7f7848342e2c",
+      "source": "public hand-authored archive fixture"
+    },
+    {
+      "scenario_id": "challenge-behaviour_present-3",
+      "template_family": "union-select",
+      "split": "challenge",
+      "label": "behaviour_present",
+      "file": "fixtures/web/challenge/behaviour_present.jsonl",
+      "line": 3,
+      "record_sha256": "4194952d04b9377bb1c48c6c1cc82b0a6c1d3029c38e7fbb172c61f45dbc1409",
+      "source": "public hand-authored archive fixture"
+    },
+    {
+      "scenario_id": "challenge-behaviour_present-4",
+      "template_family": "or-equality",
+      "split": "challenge",
+      "label": "behaviour_present",
+      "file": "fixtures/web/challenge/behaviour_present.jsonl",
+      "line": 4,
+      "record_sha256": "b70606c1ab1ef239f8fc8850462d470234261db345ebef259a0509a5eb45e272",
+      "source": "public hand-authored archive fixture"
+    },
+    {
+      "scenario_id": "challenge-out_of_scope-1",
+      "template_family": "control",
+      "split": "challenge",
+      "label": "out_of_scope",
+      "file": "fixtures/web/challenge/out_of_scope.jsonl",
+      "line": 1,
+      "record_sha256": "ecffc823edf92f28e630beeb8745ced958a0ae40203eef464f6dd40446a3acfc",
+      "source": "public hand-authored archive fixture"
+    },
+    {
+      "scenario_id": "dev-behaviour_absent-1",
+      "template_family": "control",
+      "split": "dev",
+      "label": "behaviour_absent",
+      "file": "fixtures/web/dev/behaviour_absent.jsonl",
+      "line": 1,
+      "record_sha256": "eb64dc0bf9d99acf156571ca75943150e20b7f3fbc416ab8832eb2c6be2ae7e3",
+      "source": "public hand-authored archive fixture"
+    },
+    {
+      "scenario_id": "dev-behaviour_absent-2",
+      "template_family": "control",
+      "split": "dev",
+      "label": "behaviour_absent",
+      "file": "fixtures/web/dev/behaviour_absent.jsonl",
+      "line": 2,
+      "record_sha256": "637724b0c89deff79bef1537ae33b278d0993a43cb9c8c98bc084e45ef858ed1",
+      "source": "public hand-authored archive fixture"
+    },
+    {
+      "scenario_id": "dev-behaviour_absent-3",
+      "template_family": "control",
+      "split": "dev",
+      "label": "behaviour_absent",
+      "file": "fixtures/web/dev/behaviour_absent.jsonl",
+      "line": 3,
+      "record_sha256": "adf5fda60c5aa8515cb79ca32774d5676730629bb53a76e46b24c524dbaf5abf",
+      "source": "public hand-authored archive fixture"
+    },
+    {
+      "scenario_id": "dev-behaviour_present-1",
+      "template_family": "quote-comment",
+      "split": "dev",
+      "label": "behaviour_present",
+      "file": "fixtures/web/dev/behaviour_present.jsonl",
+      "line": 1,
+      "record_sha256": "9e5c8699765d3bc47a959e9a841c16b54488e3b8ce73496a2504434b20c12c59",
+      "source": "public hand-authored archive fixture"
+    },
+    {
+      "scenario_id": "dev-behaviour_present-2",
+      "template_family": "or-equality",
+      "split": "dev",
+      "label": "behaviour_present",
+      "file": "fixtures/web/dev/behaviour_present.jsonl",
+      "line": 2,
+      "record_sha256": "aaa4d6e13e76326c6394ba559269b1d7fe5539f6755894bfcad2020eea758c24",
+      "source": "public hand-authored archive fixture"
+    },
+    {
+      "scenario_id": "dev-behaviour_present-3",
+      "template_family": "union-select",
+      "split": "dev",
+      "label": "behaviour_present",
+      "file": "fixtures/web/dev/behaviour_present.jsonl",
+      "line": 3,
+      "record_sha256": "b0664cb39e6c5af9afae571ee318bc0b420ad79fdeec9abe5eda8324f16eff36",
+      "source": "public hand-authored archive fixture"
+    },
+    {
+      "scenario_id": "dev-out_of_scope-1",
+      "template_family": "control",
+      "split": "dev",
+      "label": "out_of_scope",
+      "file": "fixtures/web/dev/out_of_scope.jsonl",
+      "line": 1,
+      "record_sha256": "64eff65bc0a34e462fac26e6d80678228cfd2237564ee8e6e23e9a1c74fad100",
+      "source": "public hand-authored archive fixture"
+    },
+    {
+      "scenario_id": "train-behaviour_absent-1",
+      "template_family": "control",
+      "split": "train",
+      "label": "behaviour_absent",
+      "file": "fixtures/web/train/behaviour_absent.jsonl",
+      "line": 1,
+      "record_sha256": "19b5f83bfe0bd371889ec9e32b8a93620a91512de61eb11da30ac5eff8a2e26a",
+      "source": "public hand-authored archive fixture"
+    },
+    {
+      "scenario_id": "train-behaviour_absent-2",
+      "template_family": "control",
+      "split": "train",
+      "label": "behaviour_absent",
+      "file": "fixtures/web/train/behaviour_absent.jsonl",
+      "line": 2,
+      "record_sha256": "1ade5066e1014122c7db32ef6333cc72bd34c22830b7fde2d0fc9500acc79d65",
+      "source": "public hand-authored archive fixture"
+    },
+    {
+      "scenario_id": "train-behaviour_absent-3",
+      "template_family": "control",
+      "split": "train",
+      "label": "behaviour_absent",
+      "file": "fixtures/web/train/behaviour_absent.jsonl",
+      "line": 3,
+      "record_sha256": "331f086a5ddf49a3f1e146363c116d2d4d6f399261aabdf0e7f4070051f076f9",
+      "source": "public hand-authored archive fixture"
+    },
+    {
+      "scenario_id": "train-behaviour_absent-4",
+      "template_family": "control",
+      "split": "train",
+      "label": "behaviour_absent",
+      "file": "fixtures/web/train/behaviour_absent.jsonl",
+      "line": 4,
+      "record_sha256": "8c4741e777628345824c748866d96888bc2aac3fa55f6b56e88581cf7caa3a53",
+      "source": "public hand-authored archive fixture"
+    },
+    {
+      "scenario_id": "train-behaviour_absent-5",
+      "template_family": "control",
+      "split": "train",
+      "label": "behaviour_absent",
+      "file": "fixtures/web/train/behaviour_absent.jsonl",
+      "line": 5,
+      "record_sha256": "f8fbdc3326ed5f9b7d448beb011f2f5eb78bfc67e26ee2b7de143b70306899a1",
+      "source": "public hand-authored archive fixture"
+    },
+    {
+      "scenario_id": "train-behaviour_present-1",
+      "template_family": "or-equality",
+      "split": "train",
+      "label": "behaviour_present",
+      "file": "fixtures/web/train/behaviour_present.jsonl",
+      "line": 1,
+      "record_sha256": "c45a20cc5a9241aaaab8df6dd14cf66146f7666558efdb8e6c68b6c8c0611442",
+      "source": "public hand-authored archive fixture"
+    },
+    {
+      "scenario_id": "train-behaviour_present-2",
+      "template_family": "or-equality",
+      "split": "train",
+      "label": "behaviour_present",
+      "file": "fixtures/web/train/behaviour_present.jsonl",
+      "line": 2,
+      "record_sha256": "13a7e94eedcd1b2afe7c5e4ce4963772dbcd952693dc607e50e8a5b9f30a5259",
+      "source": "public hand-authored archive fixture"
+    },
+    {
+      "scenario_id": "train-behaviour_present-3",
+      "template_family": "union-select",
+      "split": "train",
+      "label": "behaviour_present",
+      "file": "fixtures/web/train/behaviour_present.jsonl",
+      "line": 3,
+      "record_sha256": "3358b31bcf655e9b6bd78a9128b63e515584cd395b14cac1c9cf0b1ff92964f7",
+      "source": "public hand-authored archive fixture"
+    },
+    {
+      "scenario_id": "train-out_of_scope-1",
+      "template_family": "control",
+      "split": "train",
+      "label": "out_of_scope",
+      "file": "fixtures/web/train/out_of_scope.jsonl",
+      "line": 1,
+      "record_sha256": "7a352eba1cab48b83f5d7cf9ad5731bd029d89c825dcc169313bebaadccd985c",
+      "source": "public hand-authored archive fixture"
+    }
+  ]
+}

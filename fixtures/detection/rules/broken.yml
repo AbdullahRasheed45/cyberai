@@ -1,0 +1,6 @@
+title: Broken rule
+logsource:
+  category: process_creation
+detection:
+  selection:
+    Image|endswith: '\powershell.exe'
