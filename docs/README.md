@@ -1,22 +1,24 @@
 # docs/ — what each file is
 
-The single governing document is **`MASTER_BRIEF_v2.2.md`**. Everything else here is either an
+The single governing document is **`MASTER_BRIEF_v2.3.md`**. Everything else here is either an
 operational runbook for the GB10 trial or a focused reference. Superseded briefs and dated
-snapshots live in `history/` (kept for provenance; v2.2 supersedes their conflicting task contracts).
+snapshots live in `history/` (kept for provenance; v2.3 supersedes their conflicting task contracts).
 
 ## Current remediation evidence
+
+- `WORKFLOW_RECONCILIATION_2026-11-16.md`: current fixes, evidence and remaining boundaries.
 
 - `REVIEW_FIX_LEDGER_2026-11-16.md`: all 29 findings and six follow-up defects,
   separating tested code from future specifications and open decisions.
 - `HANDOFF_2026-11-16.md`: actual offline results and unexecuted machine checks.
 - `CLAUDE_HANDOFF_PROMPT_2026-11-16.md`: owner-voice prompt for the next session.
-- `MASTER_BRIEF_v2.1.md` and `history/MASTER_BRIEF_v2.0.md`: preserved prior versions.
+- `MASTER_BRIEF_v2.2.md`, `MASTER_BRIEF_v2.1.md` and `history/MASTER_BRIEF_v2.0.md`: preserved prior versions.
 
 ## Start here
 
 | File | What it is |
 |---|---|
-| **`MASTER_BRIEF_v2.2.md`** | **The whole project in one file.** Part A: system design, the twelve rules, data contracts, the cheat-proof verifier specification. Part B: every in-scope stage as an ordered list of numbered tasks, each naming the files, behaviour, tests and the command that proves it done. A coding agent builds the project by working through it. Read this first. |
+| **`MASTER_BRIEF_v2.3.md`** | **Current product and build contracts.** Core invariants, actual workflow status, trust/data/verification boundaries, stage tasks, future acceptance tests and open owner decisions. Requirements are not implementation evidence. Read this first. |
 | `diagram-master-comprehensive.drawio` | The system in one picture (open in draw.io). |
 
 ## The GB10 trial (Stage 1A — built, tested offline, not yet run)

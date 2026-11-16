@@ -1,8 +1,8 @@
 > 16 November correction: current specification/evidence are in
-> `MASTER_BRIEF_v2.2.md` and `HANDOFF_2026-11-16.md`. For the web trial, deploy
+> `MASTER_BRIEF_v2.3.md` and `HANDOFF_2026-11-16.md`. For the web trial, deploy
 > the existing protocol1 `lab.web_workflow.worker --from-ssh`, not the unbuilt
 > kit worker. Set LAB_SSH_HOST and LAB_EXPECTED_HOSTNAME and run the scripted
-> SSH rehearsal in v2.2 §9. Local reference runs do not establish remote isolation.
+> SSH rehearsal in v2.3 §9. Local reference runs do not establish remote isolation.
 
 # Start here: 24-hour DGX Spark hardware trial
 
@@ -17,7 +17,8 @@ Custom GPU Docker support is unconfirmed; do not assume the SSH instance is a ho
 
 13 November 2026. Primary purpose: measure GB10 latency, tokens/sec,
 context/concurrency limits, memory pressure and real training/save/reload speed
-before purchasing hardware. A separate cyber lab is optional for this trial.
+before purchasing hardware. A separate lab is required for the representative offensive workflow; it is
+optional only for an explicitly labelled hardware-only diagnostic subset.
 No command below provisions paid compute or authorises a purchase.
 
 ## Pre-booking checklist and Windows Docker evidence
@@ -63,10 +64,12 @@ Use the existing repository and feature branch; `main` is intentionally minimal.
 On the rented Linux ARM64 Spark, after connecting with the provider's SSH command:
 
 ```bash
-git clone --branch stage-1/live-web-rental-readiness --single-branch https://github.com/AbdullahRasheed45/cyberai.git
+git clone --branch docs/v2.3-workflow-consolidation --single-branch https://github.com/AbdullahRasheed45/cyberai.git
 cd cyberai
 git status --short --branch
 git rev-parse HEAD
+# Record this exact reviewed commit; subsequent runs use it, not a moving branch.
+# If using another approved revision: git checkout --detach <FULL_REVIEWED_COMMIT>
 ```
 
 Private repository access requires your existing GitHub credentials or an approved
@@ -100,8 +103,7 @@ Use the provider's installed `uv`, or install it using its official instructions
 https://docs.astral.sh/uv/getting-started/installation/
 
 ```bash
-uv sync --frozen
-uv pip install huggingface-hub
+uv sync --frozen --extra rental-download
 mkdir -p artifacts data runs/hf_cache
 uv run pytest -q
 uv run ruff check .
@@ -109,13 +111,24 @@ uv run ruff check .
 
 These are CPU checks; they do not confirm CUDA/model compatibility.
 
-## 4. Select the hardware-only workload and storage
+## 4. Select the representative web workload and storage
+
+On the development host before billing (use fresh filenames), generate the
+reference and pilot. Transfer the pilot and its hash to the Spark; do not run
+target-lab processes on the Spark:
 
 ```bash
-export WORKLOAD_DOMAIN=detection
-export TRAIN_MODE=pilot
-export PILOT_DATA=data/platform_pilot.jsonl
-uv run python scripts/rental/make_pilot.py --domain detection --out "$PILOT_DATA"
+# Generate on the development machine BEFORE billing; copy the data and hash.
+uv run python scripts/run_live_web_reference.py --out artifacts/trial_reference.jsonl
+uv run python scripts/rental/make_pilot.py --domain web --trajectories artifacts/trial_reference.jsonl --out data/web_pilot.jsonl
+```
+
+On the Spark after copying the development pilot to data/web_pilot.jsonl:
+
+```bash
+export WORKLOAD_DOMAIN=web TRAIN_MODE=pilot PILOT_DATA=data/web_pilot.jsonl
+export LAB_SSH_HOST=cyberai-lab
+export LAB_EXPECTED_HOSTNAME=REPLACE_WITH_VERIFIED_LAB_HOSTNAME
 export MODEL_PATH=/data/models/qwen3-fp8
 export EVIDENCE_EXPORT_DIR=/mnt/durable/cyberai-trial
 export RENTAL_STOP_UTC='REPLACE_WITH_ACTUAL_FUTURE_ISO_UTC_DEADLINE'
@@ -126,8 +139,20 @@ Replace paths with actual locations and the deadline with e.g. a valid
 destination must be durable storage outside the rental instance or an explicitly
 mounted durable volume; a folder name alone cannot establish durability.
 
-`detection` executes the existing model-to-rule integration smoke without SSH or
-a target lab. The small detection pilot validates training plumbing and provides
+The web profile requires the isolated lab and pinned-key SSH rehearsal from
+`MASTER_BRIEF_v2.3.md` §9. Run this from the engine after access is available:
+
+```bash
+uv run python scripts/rental/check_ssh_lab_link.py --out artifacts/link_rehearsal.jsonl
+```
+
+The long reference contains real benign activity for one narrow scenario. It is
+representative of that noisy-context workflow only, not diverse attack chains or
+six-domain model learning. Hash and retain the exact development JSONL.
+
+For hardware-only diagnostics, explicitly select WORKLOAD_DOMAIN=detection and
+create a fresh detection pilot with make_pilot.py --domain detection. `detection`
+executes the existing model-to-rule integration smoke without SSH or a target lab. The small detection pilot validates training plumbing and provides
 a baseline timing result, not representative long-context cyber training or a
 learning-gain claim. For representative data, transfer your prepared, verified
 development trajectory JSONL and set PILOT_DATA to its repo-relative path.
@@ -162,7 +187,7 @@ The template remains unchanged. All GPU compatibility is unexecuted as of this g
 ## 6. Download Qwen on the Spark
 
 ```bash
-uv run python scripts/rental/materialise_checkpoint.py
+uv run --extra rental-download python scripts/rental/materialise_checkpoint.py
 ```
 
 This obtains the pinned serving snapshot into MODEL_PATH and writes a hash
@@ -171,9 +196,8 @@ Both training and fresh reload share `runs/hf_cache`, mounted at `/hf-cache` wit
 HF_HOME set. This avoids repeated downloads across matrix cells. The cache is
 on the rental filesystem; it is not automatically durable beyond termination.
 
-Model (owner decision): **Qwen3-30B-A3B MoE only** — Instruct-2507 (released July
-2025; the newest Qwen3-30B-A3B text release, and the model for the 15 January 2027
-fine-tune target). Serving uses the official FP8 checkpoint; training uses the
+Model family: **Qwen3-30B-A3B MoE only**. The pinned working variant is
+Instruct-2507; this guide makes no current-latest release claim. Serving uses the official FP8 checkpoint; training uses the
 lineage-matched Unsloth copy of the same BF16 weights. Instruct-2507 is non-thinking;
 the reasoning comparison against Thinking-2507 remains a separate decision.
 
@@ -204,8 +228,11 @@ uv run python scripts/rental/track_command.py --out artifacts/tracked_$RUN_ID.js
 ```
 
 This executes preflight, base serving/measurement, resource release, training,
-save, fresh-process reload, adapter serving, detection integration smoke and
-hashed evidence export. A failed model smoke is retained as a failure; it is
+save, fresh-process reload, adapter serving, the selected workflow and
+hashed evidence export. Web additionally records its base workflow under
+`artifacts/run_<RUN_ID>/baseline/` before training. A failed baseline stops this
+web run and exports partial evidence; do not hide it or call it learning gain.
+A failed model smoke is retained as a failure; it is
 distinct from measured hardware speed. Preserve logs from failed phases.
 
 Lifecycle knobs (environment, all recorded in the evidence; defaults shown):
@@ -243,12 +270,16 @@ Results to read after each run: `artifacts/run_$RUN_ID/inference_measurements.js
 `exact` or labelled `kernel_tolerant`), `artifacts/run_$RUN_ID/workload_result.json`,
 `receipt.json` and `export_result.json`.
 
-Do not restart with the same RUN_ID. On its `--timeout` the tracker sends SIGTERM
+Do not restart with the same RUN_ID. The orchestrator refuses reused output paths.
+With RENTAL_STOP_UTC set, the tracker caps execution time to leave its cleanup
+grace plus a three-hour export reserve (--reserve-seconds 10800). It refuses new
+tracked work once that reserve is reached. Raw unwrapped commands are not capped. On its `--timeout` the tracker sends SIGTERM
 and waits `--grace` seconds (default 600) before killing: the lifecycle treats SIGTERM
 (or a closed SSH session, SIGHUP) as a failure, stops its serving containers and
-exports partial evidence; the dashboard shows `TERMINATING` meanwhile. A leftover
-`cyberai_serve_*` container from an interrupted run is removed (and logged) before the
-next start. Still inspect `docker ps` after any interruption. Never overlap serving
+exports partial evidence; the dashboard shows `TERMINATING` meanwhile. An exited leftover serving container can be removed before restart; an active
+one is refused. The per-user cooperative OS lock prevents overlapping orchestrator
+and run_smoke.sh sessions; raw manual Docker commands bypass it. Interrupted
+training is identified for cleanup. This is not the future privileged broker. Still inspect `docker ps` after any interruption. Never overlap serving
 and training merely to save time on a shared-memory device. Run long commands inside
 `tmux` (or `screen`) if available, so a dropped SSH connection does not stop them.
 
@@ -299,7 +330,7 @@ does not create long input. Copy these additional run directories before teardow
 | 2–5 | Base latency, actual tokens/sec, context/concurrency and sampled memory |
 | 5–11 | Training matrix, actual tokens, synchronized step times, save/fresh reload |
 | 11–15 | Real adapter deployment and repeatable output checks |
-| 15–19 | Representative data/model behavior comparison; optional lab only if already rehearsed |
+| 15–19 | Representative web workflow/controls only with rehearsed isolated lab |
 | 19–21 | One diagnosed rerun; preserve results of failures |
 | 21–24 | Export, independent readback, cleanup and provider termination |
 
@@ -335,6 +366,22 @@ Inspect `docker ps`; stop only this trial's containers. Terminate the instance
 through the provider and confirm billing stopped. `timeout` and RENTAL_STOP_UTC
 do not terminate the provider instance. Preserve the final three hours for this.
 
-For the optional isolated Windows-laptop lab, follow
-`RENTAL_RUNBOOK_2026-11-13.md`; set WORKLOAD_DOMAIN=web and LAB_SSH_HOST only after
-the VM/SSH workflow is rehearsed. Lab readiness does not block the hardware-only scope.
+For the Windows-laptop lab, follow current `MASTER_BRIEF_v2.3.md` §9 and
+`EXECUTION_ENVIRONMENTS.md`. The older rental record is historical evidence.
+A hardware-only diagnostic run cannot close the representative-web purchase criterion.
+
+
+## Windows local validation if OneDrive locks the environment
+
+Keep virtual environments/caches outside OneDrive; do not delete unrelated local
+packages to force installation. In PowerShell, the environment used for this pass:
+
+```powershell
+$env:UV_PROJECT_ENVIRONMENT = "$env:LOCALAPPDATA/Temp/cyberai-v23-validation"
+$env:UV_CACHE_DIR = "$env:LOCALAPPDATA/Temp/cyberai-v23-cache"
+$env:UV_LINK_MODE = "copy"
+uv sync --frozen --extra rental-download
+uv run --extra rental-download pytest -q
+```
+
+This is a local tooling workaround, not a provider or model configuration change.

@@ -8,17 +8,18 @@ that deployment/GPU/security checks have passed.
 
 Read in order:
 1. AGENTS.md and GIT_WORKFLOW.md.
-2. docs/MASTER_BRIEF_v2.2.md, completely.
-3. docs/REVIEW_FIX_LEDGER_2026-11-16.md and docs/HANDOFF_2026-11-16.md.
-4. Actual changes in the focused detector, lab-protocol and v2.2 documentation
+2. docs/MASTER_BRIEF_v2.3.md, completely.
+3. docs/WORKFLOW_RECONCILIATION_2026-11-16.md,
+   docs/REVIEW_FIX_LEDGER_2026-11-16.md and docs/HANDOFF_2026-11-16.md.
+4. Actual changes in the focused detector, lab-protocol and v2.3 workflow/documentation
    branches/PRs; inspect current git status and tests rather than trusting summaries.
 
 The detector now varies consistent event-field values instead of forcing predicate
 truth; the negation cheat and impossible-branch false rejection have regressions.
 The worker terminates on attempted-action exhaustion, bounded/partial input failures
 and EOF; SSH rehearsal shares the actual workload transport and validates expected
-worker identity/protocol. Full repository tests after the code fixes: 354 passed,
-8 skipped. Skips, CPU mocks and local subprocesses are not hardware evidence.
+worker identity/protocol. Earlier v2.2 checks: 354 passed, 8 skipped. Final v2.3 checks: 368 passed,
+8 skipped in a clean locked environment; see the current handoff. Skips, CPU mocks and local subprocesses are not hardware evidence.
 
 Use the ledger to distinguish CODE, SPEC and OPEN items. Do not say all runtime
 blockers are passed. The generic kit, sealed launcher/server/account controls,
@@ -39,3 +40,12 @@ protocol1 worker for trial SSH deployment; the kit worker is unbuilt. Keep evide
 and the handoff current, preserve older versions and useful/unrelated changes,
 follow branch/PR rules and report exactly what ran. Do not rent compute, purchase,
 merge or deploy production without my explicit authorization for that action.
+
+The v2.3 pass also fixes timing, remote handshake, configuration propagation,
+base/adapted workflow records, reporting, cooperative concurrency/cleanup, deadline
+reserve and snapshot-manifest validation. The core concept remains unchanged.
+Use the latest handoff for final check counts; do not present old counts as new.
+
+Read v2.3 §22 for the owner-requested strengthening techniques. They preserve
+the core concept and are staged proposals, not completed features. End your
+report with concrete next actions and explicit remaining hardware/policy gates.

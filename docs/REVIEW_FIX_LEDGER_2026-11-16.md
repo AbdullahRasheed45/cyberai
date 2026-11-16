@@ -1,3 +1,7 @@
+> Subsequent runnable-workflow fixes and current authority: `MASTER_BRIEF_v2.3.md`
+> and `WORKFLOW_RECONCILIATION_2026-11-16.md`. The rows below preserve the v2.2
+> remediation record; SPEC/OPEN rows have not become implemented by this update.
+
 # Review remediation ledger — 16 November 2026
 
 Scope: original findings 1–29 and follow-up N1–N6. This ledger distinguishes code

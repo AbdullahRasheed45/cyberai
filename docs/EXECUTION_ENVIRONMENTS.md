@@ -1,73 +1,58 @@
-# Execution environments
+# Execution environments and current isolation limits
 
-This project's code runs across three physically and logically separate
-machines. Which host a piece of work belongs on is not a style choice — it
-is a safety boundary (CLAUDE.md PRIME DIRECTIVE #7, brief §12). This doc
-says what each host is for, what may run there, and what must never cross
-between them.
+Current authority: `MASTER_BRIEF_v2.3.md` §§4,8,9. Three roles may use two or
+three physical machines; the Spark and target lab must be physically separate.
+No extra laptop or memory upgrade beyond the owner's 32 GB lab is assumed.
 
-## 1. Windows development machine (this machine, today)
+## Windows development host
 
-- **What it is:** the day-to-day editor/CI-authoring machine. No GPU, no
-  CUDA, no Docker assumed available.
-- **What runs here:** repository scaffolding, typed schemas and config
-  validation (`libs/`), unit tests, lint/format, documentation, CI workflow
-  authoring, non-GPU service domain logic (pure functions, no I/O).
-- **What does NOT run here:** vLLM serving, Unsloth/TRL fine-tuning, anything
-  claiming a measured throughput or training-loss number. A bare-metal pip
-  install of `torch` on a non-Linux/non-aarch64 host proves nothing about the
-  GB10 path (CLAUDE.md directive #8) — don't try to approximate it here.
-- **Evidence kind this host can produce:** `EvidenceKind.LOCAL` only
-  (`libs/schemas.EvidenceKind`). Never `HARDWARE`.
+Runs editing, lint, unit/CPU integration and scripted bounded reference checks.
+Docker Desktop was demonstrated locally in the dated preparation evidence; that
+is not proof of CUDA/ARM64 compatibility or today's daemon availability. No local
+CPU result is GB10 hardware evidence. Do not run arbitrary untrusted binaries on
+this host. If this host also serves as the lab laptop, targets run inside its
+isolated disposable environment, not directly against Windows.
 
-## 2. ARM64 GB10 host (rented cloud today; a future owned DGX Spark)
+## Spark engine
 
-- **What it is:** the aarch64 Grace Blackwell box that serves and trains the
-  model. Today this is a **rented, ephemeral** cloud instance (~$0.80/hr);
-  see `DECISIONS_TO_REVISIT.md` R-001/R-002/R-003 for what changes once the
-  physical unit is owned.
-- **What runs here:** `docs/history/STAGE_0_AND_1_EXACT.md` Part B — vLLM serving
-  (FP8, SM121 container), the Unsloth + TRL LoRA smoke test, throughput
-  measurement. Only inside the pinned NGC/community containers — never a
-  bare-metal pip install of `torch` (silently becomes CPU-only on aarch64).
-- **What does NOT run here:** the lab's targets/malware, WireGuard's lab-side
-  endpoint, anything holding ownership-verification secrets for a live
-  client. Weights and credentials belong here and only here.
-- **Evidence kind this host can produce:** `EvidenceKind.HARDWARE` with
-  `HostEnvironment.GB10_CLOUD` (or `GB10_OWNED` once purchased) — the only
-  results that may be cited as confirming a brief §19 BLOCKER.
-- **Ephemeral discipline:** everything worth keeping is in git or scripted
-  to re-download (`scripts/rental/materialise_checkpoint.py` for the pinned
-  serving snapshot; the training base downloads into `runs/hf_cache` inside
-  the Unsloth container); the instance itself is disposable.
+Runs model serving, training, fresh reload, telemetry and evaluation preparation.
+Weights/cache/adapters and engine credentials remain here. Use pinned containers
+and the measured provider Docker flags. A compatible existing provider environment
+is a separately labelled manual diagnostic path; it does not establish the Docker
+lifecycle or future protected sealed installation.
 
-## 3. Isolated HP lab laptop (lab machine)
+Actual model/GPU compatibility remains unexecuted. One GPU serializes serving and
+training. The cooperative rental lock prevents accidental overlap only among
+participating commands; it is not an authorization boundary. The future protected
+broker, sealed accounts/network namespace and registry remain SPEC.
 
-- **What it is:** the physically separate, air-gapped-by-default machine
-  that hosts targets (DVWA/Juice Shop/Metasploitable now; Windows/AD/malware
-  detonation later). See brief §12 and `docs/history/ARCHITECTURE.md` §4.10/§4.4.
-- **What runs here:** `lab/` target containers, the lab state machine
-  (`TARGET_SERVING` XOR `DETONATION`, never both), `lab_gateway`'s lab-side
-  runner.
-- **What must NEVER be on this machine:** model weights, verifier answer
-  keys, or any credential the AI agent could reach. `lab/` code never
-  imports Spark-side weight/credential code (CLAUDE.md directive #7,
-  `docs/history/ARCHITECTURE.md` §5 rule 4).
-- **Network boundary:** WireGuard, firewalled Spark → lab-sandbox-IP only,
-  and torn down whenever the lab is in `DETONATION` state — enforced in
-  code, not just policy.
-- **Evidence kind this host can produce:** `EvidenceKind.HARDWARE` with
-  `HostEnvironment.LAB_LAPTOP`.
+## 32 GB Windows lab laptop
 
-## Cross-cutting rules
+Use an isolated disposable Linux VM or equivalently reviewed sandbox with a clean
+snapshot, explicit memory/disk limit and host reserve. Install only `lab/` and its
+standard-library Python requirement inside it. No Windows drive sharing, clipboard
+secrets, host credentials, engine keys, model weights or Docker socket mounts.
+Do not wipe or reconfigure the Windows installation as part of this preparation.
 
-- A PR's "Hardware evidence" section (see `.github/pull_request_template.md`)
-  must say which of these three hosts — or CI, or none — actually produced
-  each claim in it. See `libs/schemas.EvidenceRecord` for the typed shape.
-- Secrets (`HF_TOKEN`, DSNs, the WireGuard lab IP) live in `.env`
-  (git-ignored); `.env.example` holds safe placeholders only. Never put a
-  real secret in a `configs/*.yaml` file — those are validated and committed.
-- Non-secret policy belongs in `configs/*.yaml`, loaded through
-  `libs/common.load_yaml_config` against a model in `libs/schemas.config`,
-  never read ad hoc or hardcoded (CLAUDE.md: "config in YAML + env; no magic
-  numbers in code").
+The present worker starts a loopback-only HTTP target and uses a fixed action
+allow-list. Controller and target still share a process/filesystem trust boundary;
+this is deliberately not an admitted arbitrary-code/RCE/native target platform.
+Full target/observer separation requires the later kit controls before such use.
+
+Use a dedicated SSH key/account and a forced command from the current brief §9.
+Pin the independently verified SSH host key and configure LAB_EXPECTED_HOSTNAME.
+Deny shell, forwarding and non-lab egress for that account/environment. Record
+actual deployed negative tests and firewall/VM restrictions before claiming
+isolation. A hostname check and an SSH success are not those tests.
+
+WireGuard/detonation XOR controls, third-party vulnerable targets and other-domain
+VMs are future work. They are not installed or enforced merely because earlier
+architecture documents list them. No detonation is authorized by this workflow.
+
+## Evidence and export
+
+Record physical host, OS/architecture, commit, configuration and actual command
+for every result. Distinguish LOCAL/MOCKED from real hardware evidence. Keep
+credentials out of logs and evidence archives. A copied bundle's matching hash
+proves byte integrity, not that its destination survives provider deletion.
+Verify durability by independent readback before the owner stops billing.
