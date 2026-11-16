@@ -44,6 +44,30 @@ This file tracks choices made because of a **current constraint** that will chan
 
 ---
 
+### R-005 — GB10 image/backend/LoRA-gate choices are provisional, unverified on real hardware
+- **Decision (for now):** `containers/vllm-gb10/IMAGE.txt` pins the official
+  NVIDIA NGC image (`nvcr.io/nvidia/vllm:26.10-py3`) as the primary attempt,
+  with a community image (`eugr/spark-vllm-docker`) pinned in
+  `FALLBACK_IMAGE.txt`; `configs/serving.yaml` defaults
+  `attention_backend: "TRITON_ATTN"` and `require_lora_fp8_verified: false`.
+  All of this is based on research (see `containers/vllm-gb10/PROVENANCE.md`),
+  not a hardware run — upstream vLLM has **no merged** sm_121/GB10 support
+  (PR vllm-project/vllm#31740, closed unmerged) as of 2026-11-11.
+- **Why now:** no GB10 session was available to this work (rule: do not
+  rent paid resources without explicit authorisation); the choices had to
+  be made from documentation/community evidence instead of measurement.
+- **Trigger:** EITHER (a) a real GB10 session runs the checks in
+  `docs/PENDING_HARDWARE_CHECKS.md`, OR (b) vLLM/NGC ship merged, documented
+  sm_121 support in a stable release (re-check
+  https://github.com/vllm-project/vllm/pull/31740 and its successors).
+- **Action on trigger:** run every row in `docs/PENDING_HARDWARE_CHECKS.md`;
+  update `PROVENANCE.md` with real `EvidenceKind.HARDWARE` results in place
+  of the current research-only claims; if the official NGC image works,
+  consider dropping the fallback; if sm_121 support merges upstream,
+  re-evaluate whether the Triton-attention-backend workaround and the
+  LoRA/FP8 refusal are still needed.
+- **Issue:** #9
+
 ## Trigger group: `revisit-on-dgx` / lab-available (hardware-dependent foundation work)
 
 ### R-004 — Stage 1 foundation (schemas, config, tooling, CI) built with no GB10/lab access

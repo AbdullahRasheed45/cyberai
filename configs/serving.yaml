@@ -1,17 +1,58 @@
-# vLLM serving on GB10 — see docs/BRIEF_v1.2 Appendix B1. Validated against
+# vLLM serving on GB10 — see docs/BRIEF_v1.2 Appendix B1 and
+# containers/vllm-gb10/PROVENANCE.md for the 2026-11-11 compatibility
+# research behind every non-obvious value below. Validated against
 # libs/schemas.ServingConfig (extra keys fail loudly, see libs/common/config.py).
 model: "Qwen/Qwen3-30B-A3B-Instruct-2507-FP8"
+# HF commit as of 2026-11-11 (https://huggingface.co/api/models/Qwen/Qwen3-30B-A3B-Instruct-2507-FP8).
+# Re-pin deliberately when the model is intentionally updated; never let this float.
+model_revision: "5a5a776300a41aaa681dd7ff0106608ef2bc90db"
 served_model_name: "qwen3"
 # Qwen3-14B dense fallback (brief §4.2): the forgiving first-baseline model
-# while the MoE serving/training path is being debugged.
-dense_fallback_model: "Qwen/Qwen3-14B-Instruct"
+# while the MoE serving/training path is being debugged. NOTE: the official
+# repo is "Qwen/Qwen3-14B" — there is no separate "-Instruct" variant for the
+# dense 14B (unlike the 30B-A3B line). An earlier version of this file had
+# "Qwen/Qwen3-14B-Instruct", which does not exist; corrected 2026-11-11.
+dense_fallback_model: "Qwen/Qwen3-14B"
+# HF commit as of 2026-11-11 (https://huggingface.co/api/models/Qwen/Qwen3-14B).
+dense_fallback_revision: "40c069824f4251a91eefaf281ebe4c544efd3e18"
 dtype: "auto"            # FP8 variant
 gpu_memory_utilization: 0.85
 max_model_len: 32768
 enable_prefix_caching: true
 enable_chunked_prefill: true
+
+# Bind to loopback by default — the trusted interface is whatever fronts
+# this (SSH tunnel / WireGuard), never a bare 0.0.0.0. Override via
+# VLLM_BIND_HOST in .env for a host that must expose a specific interface.
+host: "127.0.0.1"
+port: 8000
+
+# Concurrency/memory: UNVERIFIED on real GB10 as of 2026-11-11 (no hardware
+# session run yet — see DECISIONS_TO_REVISIT.md). 4 is a conservative
+# starting point (vLLM's own DGX Spark recipe keeps concurrent decode
+# streams low on this unified-memory bus); re-measure with
+# scripts/measure_throughput.py and raise deliberately.
+max_num_seqs: 4
+kv_cache_dtype: "auto"
+
+# GB10/sm_121: upstream CUTLASS scaled_mm has no sm_121 kernel
+# (vllm-project/vllm#31740, closed unmerged). Triton is the backend
+# reported working in practice. Applied via VLLM_ATTENTION_BACKEND, not a
+# CLI flag — see containers/vllm-gb10/PROVENANCE.md.
+attention_backend: "TRITON_ATTN"
+
 enable_lora: true
-# Adapter ids certified by the promotion gate (model_registry). Empty until a
-# generation exists — never list an unpromoted adapter here.
+# Adapter ids certified by the promotion gate (model_registry). Empty until
+# a generation exists — never list an unpromoted adapter here.
 lora_adapters: []
-# DO NOT set CUTE_DSL_ARCH=sm_121a (hangs on GB10)
+# Multi-LoRA on the FP8 MoE primary model is NOT verified (vLLM issue
+# #29424 closed "not planned"; a same-family quantized-MoE+LoRA attempt
+# produced garbage output). Leave false until a real hardware correctness
+# check passes — see containers/vllm-gb10/PROVENANCE.md.
+require_lora_fp8_verified: false
+# DO NOT set CUTE_DSL_ARCH=sm_121a on this (default) path — CLAUDE.md
+# directive #8 / the original brief say it hangs on GB10. eugr's current
+# (2026-10) B12X recipes DO set it for a newer, faster MoE kernel path;
+# that is a documented, unresolved contradiction with our own prior
+# guidance — see containers/vllm-gb10/PROVENANCE.md. Do not enable the B12X
+# path without a human decision and a real hardware test.

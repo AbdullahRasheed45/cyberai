@@ -58,7 +58,9 @@ services/        per-service api/domain/infra skeletons (docs/ARCHITECTURE.md)
 verifiers/       the assured verifier (Stage 2 — build order above)
 benchmarks/      sealed hold-out benchmark + forgetting canaries
 lab/             isolated-lab code (targets, state machine) — never imports Spark code
-containers/      pinned container image tags (vLLM, Unsloth NGC)
+containers/      pinned container image tags + PROVENANCE.md (vLLM, Unsloth NGC)
+scripts/gb10/    GB10 serving: arg rendering, preflight, health checks (docs/GB10_SERVING.md)
+scripts/bench/   serving-capacity benchmark harness (docs/BENCHMARK_HARNESS.md)
 scripts/         GB10-session scripts (serving smoke test, train smoke test, benchmarks)
 tests/           unit / integration / assurance
 docs/            the design docs and stage runbooks — read in the order CLAUDE.md gives
@@ -88,6 +90,29 @@ See `GIT_WORKFLOW.md`. In short: feature branch → PR → **the human merges**,
 never a direct push to `main`; no AI/Claude attribution anywhere; log any
 constraint-driven "for now" decision in `DECISIONS_TO_REVISIT.md` plus a
 `gh issue`.
+
+## GB10 serving
+
+`scripts/gb10_serve.sh` + `scripts/gb10/` render, preflight, start/stop, and
+health-check a GB10 vLLM deployment; `containers/vllm-gb10/PROVENANCE.md`
+records the current (2026-11-11) compatibility research behind the image
+and flag choices, and is explicit about what's still unverified (notably:
+GB10/sm_121 has no merged upstream vLLM support, and multi-LoRA on the FP8
+MoE model is refused by default pending a real hardware correctness check).
+See `docs/GB10_SERVING.md` to run it and `docs/PENDING_HARDWARE_CHECKS.md`
+for exactly what a real session still needs to confirm.
+
+## Benchmark harness
+
+`scripts/bench/run_benchmark.py` measures the serving endpoint's
+throughput/latency/capacity trade-offs (context length × concurrency ×
+batching) against synthetic, seeded, non-sensitive workloads — **not** the
+sealed cybersecurity capability benchmark (`benchmarks/sealed/`). Every
+report is explicitly marked `harness_test` (ran against a controlled/mock
+endpoint — proves the harness's own accounting/bounding/error-handling,
+not GPU performance) or a real measurement; a recommended operating
+configuration is only ever computed from real hardware results, and is
+`pending` otherwise. See `docs/BENCHMARK_HARNESS.md`.
 
 ## Current status
 
