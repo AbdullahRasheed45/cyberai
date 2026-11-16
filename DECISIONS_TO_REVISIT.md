@@ -192,6 +192,26 @@ This file tracks choices made because of a **current constraint** that will chan
   expected to select the standard defaults); remove Enverge-specific runbook notes.
 - **Issue:** #19
 
+## Trigger group: `revisit-on-dgx` — durable export
+
+### R-013 — Google Drive as the durable off-instance export destination
+- **Decision (for now):** `docs/DURABLE_EXPORT_GDRIVE.md` + `scripts/rental/mount_gdrive_export.sh`
+  mount a Google Drive remote via `rclone` and point `EVIDENCE_EXPORT_DIR` at
+  the mount; the existing export step (`scripts/rental/50_export.py` /
+  `rental.report.copy_verified_bundle`) is unmodified. The OAuth credential
+  (`rclone.conf`) lives only on the owner's own machine and is copied to the
+  rental instance per session; it is never committed to this repo.
+- **Why now:** the trial rents an ephemeral cloud GB10 with no durable local
+  storage; Drive is a destination the owner already controls and can verify
+  by independent readback before stopping billing. The evidence bundle itself
+  (adapter + logs, not the base model — see R-012's ~27 MB attention-only
+  adapter) is small enough for a free Drive tier.
+- **Trigger:** the physical DGX Spark is owned (persistent local NVMe/NAS).
+- **Action on trigger:** re-evaluate whether evidence needs to leave the
+  machine at all; if it does, re-pick the destination against what's actually
+  available rather than keeping the rental-era Drive mount by default.
+- **Issue:** #28
+
 ## Trigger group: `revisit-on-measurement` — Stage 2 start
 
 ### R-011 — Trial-era packages live outside the `services/` layout

@@ -138,6 +138,8 @@ Replace paths with actual locations and the deadline with e.g. a valid
 `YYYY-MM-DDTHH:MM:SSZ` timestamp. Create/verify those directories. The export
 destination must be durable storage outside the rental instance or an explicitly
 mounted durable volume; a folder name alone cannot establish durability.
+`docs/DURABLE_EXPORT_GDRIVE.md` sets this up against Google Drive if that is
+the chosen destination.
 
 The web profile requires the isolated lab and pinned-key SSH rehearsal from
 `MASTER_BRIEF_v2.3.md` §9. Run this from the engine after access is available:
