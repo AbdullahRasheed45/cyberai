@@ -60,14 +60,14 @@ def main() -> int:
     checks: dict[str, object] = {}
     passed = True
 
-    with httpx.Client(timeout=args.timeout) as client:
+    with httpx.Client(timeout=args.timeout, trust_env=False) as client:
         # 1. liveness
         try:
             r = client.get(f"{base}/health")
             checks["liveness"] = {"status_code": r.status_code}
             if r.status_code != 200:
                 passed = False
-        except httpx.HTTPError as exc:
+        except (httpx.HTTPError, ValueError, TypeError, AttributeError, IndexError) as exc:
             checks["liveness"] = {"error": str(exc)}
             passed = False
             print(f"LIVENESS FAILED: cannot reach {base}/health: {exc}", file=sys.stderr)
@@ -75,6 +75,7 @@ def main() -> int:
         # 2. readiness: the expected model is actually loaded
         try:
             r = client.get(f"{base}/v1/models")
+            r.raise_for_status()
             model_ids = [m.get("id") for m in r.json().get("data", [])]
             ready = args.served_model_name in model_ids
             checks["readiness"] = {
@@ -88,7 +89,7 @@ def main() -> int:
                     f"READINESS FAILED: '{args.served_model_name}' not in {model_ids}",
                     file=sys.stderr,
                 )
-        except httpx.HTTPError as exc:
+        except (httpx.HTTPError, ValueError, TypeError, AttributeError, IndexError) as exc:
             checks["readiness"] = {"error": str(exc)}
             passed = False
             print(f"READINESS FAILED: {exc}", file=sys.stderr)
@@ -119,7 +120,7 @@ def main() -> int:
                         f"INFERENCE SMOKE TEST FAILED: status={r.status_code} body={body}",
                         file=sys.stderr,
                     )
-            except httpx.HTTPError as exc:
+            except (httpx.HTTPError, ValueError, TypeError, AttributeError, IndexError) as exc:
                 checks["inference"] = {"error": str(exc)}
                 passed = False
                 print(f"INFERENCE SMOKE TEST FAILED: {exc}", file=sys.stderr)

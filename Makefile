@@ -13,8 +13,9 @@ format:
 # This is what CI runs; see docs/EXECUTION_ENVIRONMENTS.md for what cannot.
 check: lint test
 serve-smoke:
-	bash scripts/serve_smoke.sh
+	bash scripts/gb10_serve.sh smoke-test gb10_cloud hardware
 train-smoke:
-	bash scripts/train_smoke.sh
+	@echo "BLOCKED: training/rental implementation is absent; see docs/PRE_RENTAL_READINESS.md"
+	@exit 1
 bench:
-	uv run python scripts/measure_throughput.py
+	uv run python scripts/measure_throughput.py --host-env gb10_cloud --evidence hardware

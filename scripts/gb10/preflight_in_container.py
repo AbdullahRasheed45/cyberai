@@ -93,13 +93,20 @@ def check_vllm_import_and_help() -> tuple[bool, str, dict]:
         return False, f"FAIL: cannot import vllm: {exc}", {}
 
     try:
-        help_out = subprocess.run(
+        help_result = subprocess.run(
             ["vllm", "serve", "--help"], capture_output=True, text=True, timeout=60
-        ).stdout
+        )
+        if help_result.returncode != 0:
+            return (
+                False,
+                f"FAIL: vllm help exited {help_result.returncode}",
+                {"stderr": help_result.stderr},
+            )
+        help_out = help_result.stdout
     except Exception as exc:  # noqa: BLE001
         return (
-            True,
-            f"OK: vllm {version} importable, but 'vllm serve --help' failed: {exc}",
+            False,
+            f"FAIL: vllm {version} importable, but 'vllm serve --help' failed: {exc}",
             {"vllm_version": version},
         )
 
@@ -112,7 +119,7 @@ def check_vllm_import_and_help() -> tuple[bool, str, dict]:
     msg = f"OK: vllm {version}; 'vllm serve --help' captured ({len(help_out)} chars)."
     if missing:
         msg += f" NOTE: flags assumed by serving.yaml missing from --help: {missing}."
-    return True, msg, {"vllm_version": version, "serve_help_missing_assumed_flags": missing}
+    return not missing, msg, {"vllm_version": version, "serve_help_missing_assumed_flags": missing}
 
 
 def main() -> int:
