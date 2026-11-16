@@ -27,10 +27,13 @@ def main():
     )
     parser.add_argument("--background-requests", type=int, default=0, choices=range(257))
     parser.add_argument("--from-ssh", action="store_true")
-    parser.add_argument("--idle-timeout", type=float, default=10)
+    parser.add_argument("--idle-timeout", type=float, default=130)
+    parser.add_argument("--partial-timeout", type=float, default=10)
     args = parser.parse_args()
     if not 0 < args.idle_timeout <= 300:
         parser.error("idle timeout must be in (0, 300]")
+    if not 0 < args.partial_timeout <= 10:
+        parser.error("partial timeout must be in (0, 10]")
     if args.from_ssh and os.environ.get("SSH_ORIGINAL_COMMAND", "") not in {
         "",
         "python3 -m lab.web_workflow.worker",
@@ -53,6 +56,9 @@ def main():
                         "ready": True,
                         "scenario": "owned-http-authz-v1",
                         "host": socket.gethostname(),
+                        "protocol": 1,
+                        "idle_timeout_s": args.idle_timeout,
+                        "partial_timeout_s": args.partial_timeout,
                     }
                 ),
                 flush=True,
@@ -80,7 +86,7 @@ def main():
                     flush=True,
                 )
 
-            lines = action_lines(sys.stdin.fileno(), args.idle_timeout)
+            lines = action_lines(sys.stdin.fileno(), args.idle_timeout, args.partial_timeout)
             while actions_attempted < MAX_ACTIONS:
                 try:
                     raw = next(lines)

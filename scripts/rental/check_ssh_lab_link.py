@@ -30,7 +30,7 @@ import socket
 import sys
 from pathlib import Path
 
-from rental.live_web import LabSession, run_loop, ssh_worker_argv
+from rental.live_web import LabSession, run_loop, ssh_worker_argv, validate_remote_worker
 
 HOST_ALIAS_RE = re.compile(r"[A-Za-z][A-Za-z0-9_-]{0,63}")
 
@@ -102,8 +102,7 @@ def main() -> int:
     try:
         session = LabSession(ssh_argv(host))
         remote_host = verify_remote(session.ready_info.get("host"), local_host, args.expected_host)
-        if session.ready_info.get("scenario") != "owned-http-authz-v1":
-            raise LinkNotExercisedError("wrong forced-command worker protocol")
+        validate_remote_worker(session.ready_info, args.expected_host)
         record = run_loop(session, scripted_actions())
     except Exception as exc:
         record = {

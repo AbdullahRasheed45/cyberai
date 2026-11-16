@@ -35,6 +35,8 @@ def main():
     # Optional evidence: included when the phase that produces it ran. Serving
     # console logs are the only record of vLLM startup/kernel errors after `rm -f`.
     optional = [
+        os.path.join(adir, "baseline", "workload_result.json"),
+        os.path.join(adir, "baseline", "web_offensive_trajectories.jsonl"),
         os.path.join(adir, "web_offensive_trajectories.jsonl"),
         os.path.join(adir, "phase.json"),
         os.path.join(adir, "SNAPSHOT_MANIFEST.json"),

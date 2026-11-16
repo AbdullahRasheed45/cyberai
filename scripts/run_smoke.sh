@@ -9,11 +9,26 @@ set -euo pipefail
 : "${UNSLOTH_IMAGE:?set UNSLOTH_IMAGE to the pinned unsloth_image digest from the reviewed FREEZE}"
 : "${SMOKE_REVISION:?set SMOKE_REVISION to the pinned trainable_base_commit}"
 : "${SMOKE_OUT:?set SMOKE_OUT to a fresh runs/<RUN_ID> directory}"
+# Same cooperative per-user lock as rental.orchestrate; not a security broker.
+exec 9>"$(python3 -c 'from rental.exclusive import default_lock_path; print(default_lock_path())')"
+flock -n 9 || { echo 'another trial operation holds the GPU lifecycle lock' >&2; exit 1; }
+cell_tmp="$(mktemp -d)"
+cleanup(){
+  if [[ -s "$cell_tmp/container.cid" ]]; then
+    docker rm -f "$(cat "$cell_tmp/container.cid")" >/dev/null 2>&1 || true
+  fi
+  rm -f "$cell_tmp/container.cid"
+  rmdir "$cell_tmp"
+}
+trap cleanup EXIT
+trap 'exit 143' TERM HUP INT
 python3 -m rental.docker_runtime check   # stops if docker_env.sh was not sourced here
 read -r -a DOCKER_FLAGS <<< "$(python3 -m rental.docker_runtime all)"
 mkdir -p "$SMOKE_OUT" runs/hf_cache
 chmod 777 "$SMOKE_OUT" runs/hf_cache  # the image may run as a different uid
-run(){ docker run --rm "${DOCKER_FLAGS[@]}" \
+run(){
+  rm -f "$cell_tmp/container.cid"
+  docker run --rm --cidfile "$cell_tmp/container.cid" "${DOCKER_FLAGS[@]}" \
         -e SMOKE_MODEL -e SMOKE_REVISION -e SMOKE_OUT -e SMOKE_ADAPTER_NAME -e RUN_ID \
         -e TRAIN_MODE -e PILOT_DATA -e TRAINING_CONFIG -e TRAIN_PRECISION -e TRAIN_TARGET_SET -e HF_TOKEN \
         -e TRAIN_MAX_SEQ_LENGTH -e TRAIN_MAX_STEPS -e TRAIN_BATCH_SIZE \

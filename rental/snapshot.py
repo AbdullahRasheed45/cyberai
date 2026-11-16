@@ -45,13 +45,34 @@ def build_manifest(local_dir: str) -> dict:
 
 def verify_against_manifest(local_dir: str, manifest: dict) -> list[str]:
     """Return errors where local files are missing or hash-mismatch the manifest."""
+    import re
+
+    if not isinstance(manifest, dict) or not manifest:
+        return ["empty or invalid snapshot manifest"]
     errs = []
+    root = Path(local_dir).resolve()
     for rel, want in manifest.items():
+        if (
+            not isinstance(rel, str)
+            or Path(rel).is_absolute()
+            or not (root / rel).resolve().is_relative_to(root)
+            or not isinstance(want, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", want)
+        ):
+            errs.append(f"invalid snapshot manifest entry: {rel!r}")
+            continue
         p = os.path.join(local_dir, rel)
         if not os.path.isfile(p):
             errs.append(f"missing snapshot file: {rel}")
         elif _sha256(p) != want:
             errs.append(f"hash mismatch: {rel}")
+    actual = set()
+    for directory, dirs, files in os.walk(local_dir):
+        dirs[:] = [d for d in dirs if d not in _EXCLUDE_DIRS]
+        for name in files:
+            if name != MANIFEST_NAME and not name.endswith(_EXCLUDE_SUFFIX):
+                actual.add(os.path.relpath(os.path.join(directory, name), local_dir))
+    errs.extend(f"unlisted snapshot file: {rel}" for rel in sorted(actual - set(manifest)))
     return errs
 
 

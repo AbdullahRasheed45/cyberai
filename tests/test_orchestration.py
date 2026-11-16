@@ -319,7 +319,7 @@ def test_lifecycle_readiness_failure_exports_and_cleans():
     m = _Mock("not_ready")
     with pytest.raises(orch.LifecycleError):
         orch.run(_rc(), _ex(m))
-    assert "cyberai_serve_base" in m.stopped and "cyberai_serve_lora" in m.stopped
+    assert "cyberai_serve_base" in m.stopped and "cyberai_serve_lora" not in m.stopped
     assert any("orchestration.json" in k for k in m.evidence)  # evidence saved on failure
 
 
@@ -470,12 +470,12 @@ def test_train_dirs_prepared_and_cache_drops_recorded():
 
 def test_release_waits_for_unified_memory_to_settle():
     m = _Mock("ok")
-    readings = iter([2.0] + [50.0, 2.5] * 2)  # baseline, then slow release per container
+    readings = iter([2.0] + [50.0, 2.5] * 3)  # base, training and adapter release
     ev = orch.run(
         _rc(),
         _ex_full(m, mem_gb=lambda: next(readings), release_wait_s=10, mem_source=lambda: "host"),
     )
-    assert [r["release"] for r in ev["releases"]] == ["confirmed", "confirmed"]
+    assert [r["release"] for r in ev["releases"]] == ["confirmed"] * 3
     assert all(r["settle_wait_s"] == 5 and r["telemetry"] == "host" for r in ev["releases"])
 
 

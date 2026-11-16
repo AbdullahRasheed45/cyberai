@@ -117,6 +117,7 @@ def run(rc: ResolvedConfig, ex: Executor) -> dict:
     }
 
     started = time.monotonic()
+    owned_containers = set()
 
     def record(phase):
         evidence["phases"].append(phase)
@@ -177,6 +178,7 @@ def run(rc: ResolvedConfig, ex: Executor) -> dict:
         base_argv = plan.base_serve_argv(rc)
         evidence["commands"]["base_serve"] = base_argv
         ex.start(base, base_argv)
+        owned_containers.add(base)
         ex.follow_logs(base, log_path(base))
         record("wait_base")
         _wait_ready(ex, rc.health_url, base)
@@ -187,6 +189,11 @@ def run(rc: ResolvedConfig, ex: Executor) -> dict:
         m_argv, m_env = plan.measure_cmd(rc)
         evidence["commands"]["measure"] = (m_argv, m_env)
         ex.run(m_argv, m_env)
+        if rc.workload_domain == "web":
+            record("baseline_workload")
+            b_argv, b_env = plan.baseline_workload_cmd(rc)
+            evidence["commands"]["baseline_workload"] = (b_argv, b_env)
+            ex.run(b_argv, b_env)
         record("stop_base")
         evidence["releases"].append(_stop_and_verify_release(ex, base, baseline))
 
@@ -195,7 +202,12 @@ def run(rc: ResolvedConfig, ex: Executor) -> dict:
         ex.prepare_dirs(plan.train_dirs(rc))
         t_argv = plan.train_argv(rc)
         evidence["commands"]["train"] = t_argv
+        owned_containers.add(f"cyberai_train_{rc.run_id}")
         ex.run(t_argv, {})
+        record("release_training")
+        evidence["releases"].append(
+            _stop_and_verify_release(ex, f"cyberai_train_{rc.run_id}", baseline)
+        )
         # validate the ACTUAL saved adapter's base (Astra #6), not tokenizer identity
         record("verify_adapter_metadata")
         acfg = ex.read_adapter_config(rc.adapter_config_path)
@@ -218,6 +230,7 @@ def run(rc: ResolvedConfig, ex: Executor) -> dict:
         lora_argv = plan.lora_serve_argv(rc)
         evidence["commands"]["lora_serve"] = lora_argv
         ex.start(lora, lora_argv)
+        owned_containers.add(lora)
         ex.follow_logs(lora, log_path(lora))
         record("wait_lora")
         _wait_ready(ex, rc.health_url, lora)
@@ -240,7 +253,7 @@ def run(rc: ResolvedConfig, ex: Executor) -> dict:
         return evidence
     except Exception as exc:
         record("cleanup")
-        for n in (base, lora):
+        for n in owned_containers:
             with contextlib.suppress(Exception):
                 ex.stop(n)
         record("export_on_failure")
@@ -294,6 +307,11 @@ def _real_executor() -> Executor:  # pragma: no cover - real side effects
             ["docker", "ps", "-aq", "-f", f"name=^{name}$"], capture_output=True, text=True
         ).stdout.strip()
         if leftover:
+            running = subprocess.check_output(
+                ["docker", "inspect", "--format", "{{.State.Running}}", name], text=True
+            ).strip()
+            if running == "true":
+                raise LifecycleError(f"refusing to remove active container {name}")
             print(f"[orchestrate] removing leftover container {name} ({leftover})", flush=True)
             subprocess.call(["docker", "rm", "-f", name])
         subprocess.check_call(argv)
@@ -434,7 +452,12 @@ def main():
         )
         sys.exit(1)
     install_termination_handler()
-    run(rc, _real_executor())
+    from .exclusive import trial_lock
+
+    with trial_lock():
+        if Path(rc.artifact_dir).exists() or Path(rc.host_output_dir).exists():
+            raise LifecycleError("RUN_ID already has artifacts/output; choose a fresh RUN_ID")
+        run(rc, _real_executor())
 
 
 class Terminated(Exception):
