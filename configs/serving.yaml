@@ -7,14 +7,8 @@ model: "Qwen/Qwen3-30B-A3B-Instruct-2507-FP8"
 # Re-pin deliberately when the model is intentionally updated; never let this float.
 model_revision: "5a5a776300a41aaa681dd7ff0106608ef2bc90db"
 served_model_name: "qwen3"
-# Qwen3-14B dense fallback (brief §4.2): the forgiving first-baseline model
-# while the MoE serving/training path is being debugged. NOTE: the official
-# repo is "Qwen/Qwen3-14B" — there is no separate "-Instruct" variant for the
-# dense 14B (unlike the 30B-A3B line). An earlier version of this file had
-# "Qwen/Qwen3-14B-Instruct", which does not exist; corrected 2026-11-11.
-dense_fallback_model: "Qwen/Qwen3-14B"
-# HF commit as of 2026-11-11 (https://huggingface.co/api/models/Qwen/Qwen3-14B).
-dense_fallback_revision: "40c069824f4251a91eefaf281ebe4c544efd3e18"
+# Owner decision 13 Nov 2026: Qwen3-30B-A3B MoE only. The earlier Qwen3-14B dense
+# fallback was removed (DECISIONS_TO_REVISIT.md R-009).
 dtype: "auto"            # FP8 variant
 gpu_memory_utilization: 0.85
 max_model_len: 32768

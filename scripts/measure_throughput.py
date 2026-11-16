@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Reproducible serving-throughput measurement against a running vLLM
 endpoint. Supersedes the inline heredoc version in
-docs/STAGE_0_AND_1_EXACT.md B3 with a configurable, typed one — the
+docs/history/STAGE_0_AND_1_EXACT.md B3 with a configurable, typed one — the
 runbook's own numbers (stage1_serving_numbers.json) are a valid simpler
 alternative if you prefer to follow it literally; this script produces the
 same shape of number as a `libs.schemas.EvidenceRecord` instead of a bare

@@ -27,11 +27,10 @@ def test_primary_command_pins_model_and_revision(cfg):
     assert cmd.argv[cmd.argv.index("--revision") + 1] == cfg.model_revision
 
 
-def test_dense_fallback_uses_its_own_model_and_a_distinct_served_name(cfg):
-    cmd = render_serve_command(cfg, variant="dense_fallback")
-    assert cmd.model == cfg.dense_fallback_model
-    assert cmd.revision == cfg.dense_fallback_revision
-    assert cmd.served_model_name != cfg.served_model_name  # never silently aliases the primary
+def test_only_the_moe_model_is_served(cfg):
+    assert "30B-A3B" in cfg.model and not hasattr(cfg, "dense_fallback_model")
+    with pytest.raises(ValueError):
+        render_serve_command(cfg, variant="dense_fallback")
 
 
 def test_binds_to_configured_host_not_a_bare_wildcard(cfg):
@@ -59,13 +58,6 @@ def test_lora_on_fp8_primary_allowed_once_explicitly_verified(cfg):
     cmd = render_serve_command(verified_cfg, variant="primary", lora_enabled=True)
     assert "--enable-lora" in cmd.argv
     assert cmd.lora_enabled is True
-
-
-def test_lora_on_dense_fallback_never_gated(cfg):
-    """The refusal is specific to the unverified FP8 MoE path."""
-    assert cfg.require_lora_fp8_verified is False
-    cmd = render_serve_command(cfg, variant="dense_fallback", lora_enabled=True)
-    assert "--enable-lora" in cmd.argv
 
 
 def test_prefix_caching_and_chunked_prefill_flags_reflect_config(cfg):

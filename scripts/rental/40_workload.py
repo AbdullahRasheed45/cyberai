@@ -27,6 +27,56 @@ from detection_verifier.acceptance import (
 from rental.clients import InferenceError, parse_completion
 from rental.paths import artifact_dir
 
+PROBE_PROMPTS = (
+    "ping 3",
+    "In one sentence, what does a Sigma detection rule describe?",
+    "Reply with the single word: ready",
+)
+
+
+def _ask(url, model, prompt):
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(
+            {
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 48,
+                "temperature": 0,
+            }
+        ).encode(),
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(request, timeout=300) as response:
+        return parse_completion(response.status, response.read().decode())["content"]
+
+
+def adapter_probe(url, base_model, adapter_model):
+    """Same prompts to the base id and the adapter id on the SAME server, greedy.
+
+    Direct evidence for the trial's main unknown (LoRA on the FP8 MoE model): the
+    raw answers are saved for a human to judge; `differs` only says whether the
+    adapter changed the output. It is not a quality score and never fails the run.
+    """
+    if not base_model or base_model == adapter_model:
+        return {"status": "skipped", "reason": "no distinct base id served"}
+    rows = []
+    for prompt in PROBE_PROMPTS:
+        row = {"prompt": prompt}
+        try:
+            row["base"] = _ask(url, base_model, prompt)
+            row["adapter"] = _ask(url, adapter_model, prompt)
+            row["differs"] = row["base"] != row["adapter"]
+        except Exception as exc:  # recorded, never fatal: the probe is evidence only
+            row["error"] = f"{type(exc).__name__}: {exc}"
+        rows.append(row)
+    return {
+        "status": "ran",
+        "any_difference": any(r.get("differs") for r in rows),
+        "rows": rows,
+        "note": "human review required; identical outputs or gibberish are findings",
+    }
+
 
 def main():
     URL = os.environ["VLLM_URL"]
@@ -121,6 +171,7 @@ def main():
     except (CandidateError, ResultTooLarge) as e:
         artifact["outcome"] = "CANDIDATE_ERROR"
         artifact["error"] = str(e)
+    artifact["adapter_probe"] = adapter_probe(URL, os.environ.get("BASE_SERVED_MODEL", ""), MODEL)
     artifact["complete_runtime_s"] = round(time.monotonic() - t0, 2)
     os.makedirs(artifact_dir(), exist_ok=True)
     (Path(artifact_dir()) / "workload_result.json").write_text(

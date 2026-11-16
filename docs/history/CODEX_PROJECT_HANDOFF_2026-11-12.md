@@ -1,5 +1,45 @@
 # CyberAI project — context handoff to repository-connected Codex
 
+## Current update — 13 November 2026
+
+Live tracker preparation: `rental.live_status` serves a loopback-only dashboard
+and read-only JSON API. `track_command.py` publishes atomic running snapshots,
+sample history and console logs. Inference preserves per-request usage/failures;
+training persists completed-step token/time/memory records. See
+`MEASUREMENTS_AND_TRACKING.md` for SSH access and one-variable tuning workflow.
+Token rates are measured workload results, not direct DRAM-bandwidth profiling.
+
+Enverge-specific preparation: `ENVERGE_SETUP.md` distinguishes custom GPU Docker
+from an already compatible provider GPU environment. `provider_probe.py` records
+actual capabilities without installing frameworks or downloading weights. The
+existing-environment route remains conditional/manual, with distinct provenance;
+Docker lifecycle evidence cannot be fabricated for it. Pinned Hub snapshot sizes
+total 92.3 decimal GB before images/outputs; download estimates are conditional.
+
+Windows Docker Desktop is now running. A network-disabled, read-only Linux amd64
+Python container passed all five live HTTP reference profiles. See
+`RENTAL_START_HERE.md` for its immutable image digest and remaining pre-booking
+choices. Earlier statements that Docker is unavailable refer to the prior host
+state. No ARM64/GPU image was executed by this rehearsal.
+
+Primary rental scope is hardware validation; follow `RENTAL_START_HERE.md`.
+WORKLOAD_DOMAIN=detection uses the lab-free integration path. Shared training
+cache now persists across trainer/reload containers. The optional web scope
+continues to require the isolated lab and SSH rehearsal.
+
+The actual v1.2 brief is now present. Use `RENTAL_RUNBOOK_2026-11-13.md`
+for current commands/status and `CURRENT_PRODUCT_SPEC.md` for reconciliation.
+Earlier paragraphs below are preserved historical evidence, not the latest
+readiness verdict. Live HTTP target and separate-process iterative tool loop
+now pass offline assurance. Four controls plus a real-background long-context
+profile are implemented. Export includes the selected freeze and live trajectory;
+a durable-mount copy verifies destination bytes. A physical two-machine SSH
+rehearsal, actual image pins and all GPU execution remain unverified.
+
+The 220-pass full-suite run resolved the prior localhost mock failure by consuming
+request bodies before returning the response. Later additions require the final
+validation record in the PR. Optional Torch skips are not GPU passes.
+
 ## Repository integration update (12 November 2026)
 
 The six supplied archives are now available and Round 18 has been integrated on `stage-1/round18-rental-integration`, retaining the earlier serving fixes. See `ROUND18_INTEGRATION.md` for exact hashes, repaired/excluded evaluation defects and evidence limits, and `PRE_RENTAL_READINESS.md` for current commands and remaining gates. The imported source is no longer missing. The historical v1.2 critique brief remains absent. The original six issues below are preserved as the historical defect record, not a claim that the repaired code is unchanged.
@@ -49,7 +89,7 @@ Canonical BF16 Qwen revision used for lineage comparison:
 - Qwen/Qwen3-30B-A3B-Instruct-2507
 - commit 0d7cf23991f47feeb3a57ecb4c9cee8ea4a17bfe
 
-All 16 published weight-shard SHA256 values and complete safetensors indexes matched between the pinned canonical BF16 model and Unsloth mirror. Evidence is artifacts/setup_resolution/lineage_verified.json in the reviewed package. This is Hub metadata verification, not a local full-weight download/hash. The official FP8 model declares canonical Instruct-2507 as its base. The reviewed freeze records lineage attestation true; actual local assets still require snapshot verification.
+All 16 published weight-shard SHA256 values and complete safetensors indexes matched between the pinned canonical BF16 model and Unsloth mirror. Evidence was artifacts/setup_resolution/lineage_verified.json in the reviewed package; it is now committed as docs/historical_evidence/round17_lineage_verified.json. This is Hub metadata verification, not a local full-weight download/hash. The official FP8 model declares canonical Instruct-2507 as its base. The reviewed freeze records lineage attestation true; actual local assets still require snapshot verification.
 
 ARM64 image candidates (registry identities verified; runtime untested):
 - vLLM: nvcr.io/nvidia/vllm@sha256:ecd885a6fa671552021eb2bef16773110ebfa4eb5e24e4a2831bf0f4808ddfea

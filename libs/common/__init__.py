@@ -5,6 +5,16 @@ from datetime import UTC, datetime
 
 import structlog
 
+from libs.common.benchmark_domain import (
+    build_sweep_plan,
+    enforce_budget,
+    estimate_requests_for_plan,
+    percentile_stats,
+    recommend_configuration,
+    summarize_point,
+    synthetic_prompt,
+)
+from libs.common.benchmark_report import render_markdown
 from libs.common.config import ConfigError, load_yaml_config
 from libs.common.gb10_serving import (
     ServeCommand,
@@ -38,4 +48,12 @@ __all__ = [
     "render_serve_command",
     "ServeCommand",
     "UnverifiedLoraCombinationError",
+    "synthetic_prompt",
+    "build_sweep_plan",
+    "estimate_requests_for_plan",
+    "enforce_budget",
+    "percentile_stats",
+    "summarize_point",
+    "recommend_configuration",
+    "render_markdown",
 ]

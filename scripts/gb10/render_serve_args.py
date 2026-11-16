@@ -9,7 +9,7 @@ tested there — this script has none of its own to re-test.
 
 Usage:
     uv run python scripts/gb10/render_serve_args.py --variant primary --format argv
-    uv run python scripts/gb10/render_serve_args.py --variant dense_fallback --lora --format env
+    uv run python scripts/gb10/render_serve_args.py --variant primary --format env
     uv run python scripts/gb10/render_serve_args.py --format json  # full ServeCommand
 """
 
@@ -37,7 +37,7 @@ def main() -> int:
     parser.add_argument(
         "--config", default=str(REPO_ROOT / "configs" / "serving.yaml"), help="path to serving.yaml"
     )
-    parser.add_argument("--variant", choices=["primary", "dense_fallback"], default="primary")
+    parser.add_argument("--variant", choices=["primary"], default="primary")
     parser.add_argument(
         "--lora",
         action="store_true",

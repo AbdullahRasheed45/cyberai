@@ -164,6 +164,7 @@ class _Mock(BaseHTTPRequestHandler):
     i = 0
 
     def do_POST(self):
+        self.rfile.read(int(self.headers.get("Content-Length", "0")))
         code, body = _Mock.seq[_Mock.i % len(_Mock.seq)]
         _Mock.i += 1
         payload = json.dumps(body).encode()

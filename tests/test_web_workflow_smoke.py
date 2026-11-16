@@ -36,3 +36,42 @@ def test_web_workload_wires_model_output_to_isolated_schema_check(tmp_path, monk
     assert evidence["domain"] == "web"
     assert evidence["outcome"] == "VERDICT_VERIFIED"
     assert evidence["kind"] == "integration_smoke"
+
+
+# --- base-vs-adapter probe: direct evidence for LoRA on the served model ---
+
+
+def _workload_module():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("workload40", "scripts/rental/40_workload.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_adapter_probe_records_both_answers_and_never_raises(monkeypatch):
+    module = _workload_module()
+
+    def ask(url, model, prompt):
+        if prompt == module.PROBE_PROMPTS[1]:
+            raise RuntimeError("server error")
+        return "pong 3" if model == "smoke" and prompt == "ping 3" else "hello"
+
+    monkeypatch.setattr(module, "_ask", ask)
+    result = module.adapter_probe("u", "qwen3", "smoke")
+    assert result["status"] == "ran" and result["any_difference"] is True
+    assert result["rows"][0] == {
+        "prompt": "ping 3",
+        "base": "hello",
+        "adapter": "pong 3",
+        "differs": True,
+    }
+    assert "RuntimeError" in result["rows"][1]["error"]  # recorded, not fatal
+    assert result["rows"][2]["differs"] is False
+
+
+def test_adapter_probe_skips_without_a_distinct_base():
+    module = _workload_module()
+    assert module.adapter_probe("u", "", "smoke")["status"] == "skipped"
+    assert module.adapter_probe("u", "smoke", "smoke")["status"] == "skipped"

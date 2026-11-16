@@ -168,6 +168,7 @@ def parse_stream_events(events: list[tuple[float, str]]) -> dict:
             decode = (visible - 1) / (last_content_t - first_content_t)
     return {
         "completion_tokens": completion_tokens,
+        "prompt_tokens": usage.get("prompt_tokens"),
         "reasoning_tokens": reasoning_tokens if isinstance(reasoning_tokens, int) else None,
         "visible_content_tokens": visible,
         "content_chunks": content_chunks,

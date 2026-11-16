@@ -11,10 +11,17 @@ from pathlib import Path
 
 import yaml
 
+from rental.docker_runtime import MEASURED_ENV_FILE, unsourced_settings
 from rental.probe import extract_probe, probe_argv
 
 
 def main():
+    missing = unsourced_settings()
+    if missing:  # wrong GPU flags would make a healthy image look broken
+        raise SystemExit(
+            f"measured Docker settings not active in this shell ({', '.join(missing)}); "
+            f"run: source {MEASURED_ENV_FILE}"
+        )
     freeze_path = Path("scripts/rental/FREEZE.yaml")
     cfg = yaml.safe_load(freeze_path.read_text(encoding="utf-8"))
     out = Path("artifacts/image_pin_collection")
@@ -25,7 +32,7 @@ def main():
         "unsloth_image": ["torch", "transformers", "unsloth", "trl", "peft", "bitsandbytes"],
     }
     for key, components in required.items():
-        result = subprocess.run(probe_argv(cfg[key]), capture_output=True, text=True, timeout=300)
+        result = subprocess.run(probe_argv(cfg[key]), capture_output=True, text=True, timeout=900)
         (out / (key + ".log")).write_text(result.stdout + "\n" + result.stderr)
         parsed = extract_probe(result.stdout)
         if result.returncode or not parsed:

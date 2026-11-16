@@ -16,6 +16,8 @@ def main():
     import yaml
 
     from rental.checkpoint import verify_local_checkpoint
+    from rental.docker_runtime import describe as describe_docker_runtime
+    from rental.docker_runtime import gpu_args, gpu_name_argv, parse_gpu_name
     from rental.freeze import validate_freeze, validate_lineage
     from rental.paths import artifact_dir
     from rental.snapshot import MANIFEST_NAME, verify_against_manifest
@@ -117,7 +119,28 @@ def main():
                 json.dumps(man), encoding="utf-8"
             )
 
-    gpu = sh("nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader")
+    gpu_query = [
+        "nvidia-smi",
+        "--query-gpu=name,memory.total,driver_version",
+        "--format=csv,noheader",
+    ]
+    gpu = sh(" ".join(gpu_query))
+    gpu_source = "host nvidia-smi"
+    if not gpu or "GB10" not in gpu:
+        # Sandboxed providers (Enverge) may expose the GPU only to containers: ask
+        # from inside the pinned serving image with the measured DOCKER_GPU_MODE. The
+        # reply is a tagged line (NVIDIA images print a banner first).
+        try:
+            r = subprocess.run(
+                gpu_name_argv(cfg.get("vllm_image", ""), gpu_args()),
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
+            gpu = parse_gpu_name(r.stdout) or gpu
+            gpu_source = "inside vllm_image (nvidia-smi, else torch)"
+        except (OSError, subprocess.TimeoutExpired, ValueError):
+            pass
     if not gpu or "GB10" not in (gpu or ""):
         errs.append(f"GB10 not detected (nvidia-smi: {gpu!r})")
     if sh("uname -m") != "aarch64":
@@ -128,6 +151,8 @@ def main():
     report = {
         "preflight": "PASSED",
         "gpu": gpu,
+        "gpu_source": gpu_source,
+        "docker_runtime": describe_docker_runtime(),
         "arch": "aarch64",
         "trainable_base": f"{cfg['trainable_base_repo']}@{cfg['trainable_base_commit']}",
         "serving_base": f"{cfg['serving_base_repo']}@{cfg['serving_base_commit']}",

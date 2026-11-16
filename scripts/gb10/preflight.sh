@@ -41,7 +41,7 @@ if command -v docker >/dev/null 2>&1; then
     if docker info 2>/dev/null | grep -qi nvidia; then
         note "docker info reports an nvidia runtime."
     else
-        note "WARNING: docker info does not obviously list an nvidia runtime — '--gpus all' may still work on recent Docker, but verify."
+        note "WARNING: docker info does not obviously list an nvidia runtime — run 'python3 scripts/rental/docker_runtime_setup.py' to measure which GPU flags work here."
     fi
 else
     fail "docker not found on this host."

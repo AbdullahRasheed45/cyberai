@@ -26,7 +26,7 @@ between them.
   model. Today this is a **rented, ephemeral** cloud instance (~$0.80/hr);
   see `DECISIONS_TO_REVISIT.md` R-001/R-002/R-003 for what changes once the
   physical unit is owned.
-- **What runs here:** `docs/STAGE_0_AND_1_EXACT.md` Part B — vLLM serving
+- **What runs here:** `docs/history/STAGE_0_AND_1_EXACT.md` Part B — vLLM serving
   (FP8, SM121 container), the Unsloth + TRL LoRA smoke test, throughput
   measurement. Only inside the pinned NGC/community containers — never a
   bare-metal pip install of `torch` (silently becomes CPU-only on aarch64).
@@ -37,21 +37,22 @@ between them.
   `HostEnvironment.GB10_CLOUD` (or `GB10_OWNED` once purchased) — the only
   results that may be cited as confirming a brief §19 BLOCKER.
 - **Ephemeral discipline:** everything worth keeping is in git or scripted
-  to re-download (`scripts/download_model.sh`); the instance itself is
-  disposable.
+  to re-download (`scripts/rental/materialise_checkpoint.py` for the pinned
+  serving snapshot; the training base downloads into `runs/hf_cache` inside
+  the Unsloth container); the instance itself is disposable.
 
 ## 3. Isolated HP lab laptop (lab machine)
 
 - **What it is:** the physically separate, air-gapped-by-default machine
   that hosts targets (DVWA/Juice Shop/Metasploitable now; Windows/AD/malware
-  detonation later). See brief §12 and `docs/ARCHITECTURE.md` §4.10/§4.4.
+  detonation later). See brief §12 and `docs/history/ARCHITECTURE.md` §4.10/§4.4.
 - **What runs here:** `lab/` target containers, the lab state machine
   (`TARGET_SERVING` XOR `DETONATION`, never both), `lab_gateway`'s lab-side
   runner.
 - **What must NEVER be on this machine:** model weights, verifier answer
   keys, or any credential the AI agent could reach. `lab/` code never
   imports Spark-side weight/credential code (CLAUDE.md directive #7,
-  `docs/ARCHITECTURE.md` §5 rule 4).
+  `docs/history/ARCHITECTURE.md` §5 rule 4).
 - **Network boundary:** WireGuard, firewalled Spark → lab-sandbox-IP only,
   and torn down whenever the lab is in `DETONATION` state — enforced in
   code, not just policy.

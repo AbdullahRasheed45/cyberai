@@ -19,7 +19,7 @@ from pydantic import BaseModel, ConfigDict
 
 from libs.schemas import ServingConfig
 
-ModelVariant = Literal["primary", "dense_fallback"]
+ModelVariant = Literal["primary"]  # Qwen3-30B-A3B MoE only (R-009)
 
 
 class UnverifiedLoraCombinationError(ValueError):
@@ -51,6 +51,38 @@ def _bool_flag(name: str, value: bool) -> str:
     return f"--{name}" if value else f"--no-{name}"
 
 
+def engine_flags(cfg: ServingConfig, *, max_model_len: int | None = None) -> list[str]:
+    """The engine-tuning flags shared by EVERY vLLM launch path.
+
+    `render_serve_command` (scripts/gb10_serve.sh) and the rental lifecycle
+    (`rental/plan.py`) both take their memory/context/batching flags from
+    here, so `configs/serving.yaml` is the single source of truth for them.
+    `max_model_len` lets a caller apply an explicit, recorded override.
+    """
+    return [
+        "--dtype",
+        cfg.dtype,
+        "--gpu-memory-utilization",
+        str(cfg.gpu_memory_utilization),
+        "--max-model-len",
+        str(max_model_len if max_model_len is not None else cfg.max_model_len),
+        "--max-num-seqs",
+        str(cfg.max_num_seqs),
+        "--kv-cache-dtype",
+        cfg.kv_cache_dtype,
+        _bool_flag("enable-prefix-caching", cfg.enable_prefix_caching),
+        _bool_flag("enable-chunked-prefill", cfg.enable_chunked_prefill),
+    ]
+
+
+def engine_env(cfg: ServingConfig) -> dict[str, str]:
+    """Environment for the vLLM process. `attention_backend: auto` sets nothing
+    and lets the installed vLLM choose; any other value is forced explicitly."""
+    if cfg.attention_backend.lower() == "auto":
+        return {}
+    return {"VLLM_ATTENTION_BACKEND": cfg.attention_backend}
+
+
 def render_serve_command(
     cfg: ServingConfig,
     *,
@@ -74,12 +106,10 @@ def render_serve_command(
             "hardware-run correctness check — not just 'it did not crash'."
         )
 
-    if variant == "primary":
-        model, revision = cfg.model, cfg.model_revision
-        default_served_name = cfg.served_model_name
-    else:
-        model, revision = cfg.dense_fallback_model, cfg.dense_fallback_revision
-        default_served_name = f"{cfg.served_model_name}-dense"
+    if variant != "primary":
+        raise ValueError(f"unknown model variant {variant!r}; only 'primary' (MoE) is served")
+    model, revision = cfg.model, cfg.model_revision
+    default_served_name = cfg.served_model_name
 
     name = served_model_name or default_served_name
 
@@ -95,18 +125,7 @@ def render_serve_command(
         cfg.host,
         "--port",
         str(cfg.port),
-        "--dtype",
-        cfg.dtype,
-        "--gpu-memory-utilization",
-        str(cfg.gpu_memory_utilization),
-        "--max-model-len",
-        str(cfg.max_model_len),
-        "--max-num-seqs",
-        str(cfg.max_num_seqs),
-        "--kv-cache-dtype",
-        cfg.kv_cache_dtype,
-        _bool_flag("enable-prefix-caching", cfg.enable_prefix_caching),
-        _bool_flag("enable-chunked-prefill", cfg.enable_chunked_prefill),
+        *engine_flags(cfg),
     ]
 
     if lora_enabled:
@@ -117,7 +136,7 @@ def render_serve_command(
             # without inventing a path format that infra hasn't built yet.
             argv.extend(["--lora-modules", adapter_id])
 
-    env = {"VLLM_ATTENTION_BACKEND": cfg.attention_backend}
+    env = engine_env(cfg)
 
     return ServeCommand(
         argv=argv,

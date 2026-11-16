@@ -12,8 +12,8 @@ MARKER = "__PROBE_JSON__"
 # Real multiline source (actual newlines). compile(PROBE_SRC) must succeed, and
 # executing it must print a MARKER line even when optional imports fail.
 PROBE_SRC = """\
-import json, importlib
-d = {"versions": {}, "cuda": False, "bf16": False, "device": None}
+import json, importlib, sys
+d = {"versions": {}, "cuda": False, "bf16": False, "device": None, "python": sys.executable}
 for _m in ["torch", "vllm", "transformers", "unsloth", "trl", "peft", "bitsandbytes"]:
     try:
         _mod = importlib.import_module(_m)
@@ -32,8 +32,28 @@ print("__PROBE_JSON__" + json.dumps(d))
 
 
 def probe_argv(image: str) -> list[str]:
-    """Exact Docker argv for the probe — passed as ONE arg, no shell interpolation."""
-    return ["docker", "run", "--rm", "--gpus", "all", image, "python", "-c", PROBE_SRC]
+    """Exact Docker argv for the probe.
+
+    Runs through `bash -lc` exactly like the training command (rental.plan.train_argv)
+    so the probe sees the SAME Python environment the trainer will use — an image
+    whose framework is only on PATH in a login shell must not fail the probe yet
+    pass training (or vice versa). The source travels as one env value and is
+    expanded only inside double quotes: no shell interpolation of its contents.
+    """
+    from rental.docker_runtime import gpu_args
+
+    return [
+        "docker",
+        "run",
+        "--rm",
+        *gpu_args(),  # DOCKER_GPU_MODE: same GPU access path as serving/training
+        "-e",
+        f"CYBERAI_PROBE_SRC={PROBE_SRC}",
+        image,
+        "bash",
+        "-lc",
+        'exec python -c "$CYBERAI_PROBE_SRC"',
+    ]
 
 
 def extract_probe(stdout: str) -> dict | None:

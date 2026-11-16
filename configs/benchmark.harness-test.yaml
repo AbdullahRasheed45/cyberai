@@ -1,0 +1,19 @@
+# A deliberately tiny, fast sweep used ONLY to self-test the benchmark
+# harness's accounting and failure handling against a controlled/mock
+# endpoint (see tests/integration/test_run_benchmark_harness.py and
+# docs/BENCHMARK_HARNESS.md). Never use this file's numbers as a
+# performance result — pass --harness-test so the report says so itself.
+seed: 1
+warmup_requests_per_point: 1
+requests_per_point: 2
+max_requests_total: 40
+max_runtime_s: 60
+request_timeout_s: 3
+context_buckets: [8192]
+length_pairs:
+  - { input_tokens: 32, output_tokens: 8 }
+concurrency_levels: [1, 2]
+prefix_cache_probe_repeats: 1
+lora_adapters_to_exercise: []
+memory_sample_interval_s: 1.0
+sla_p99_e2e_latency_s: null

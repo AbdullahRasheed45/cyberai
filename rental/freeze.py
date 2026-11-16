@@ -69,7 +69,7 @@ def validate_freeze(cfg: dict) -> list[str]:
 def validate_lineage(adapter_base: str, trainable_repo: str, trainable_commit: str) -> list[str]:
     """The adapter must have been trained against the declared trainable base."""
     errs = []
-    if adapter_base != trainable_repo:
+    if (adapter_base or "").lower() != (trainable_repo or "").lower():  # Hub ids ignore case
         errs.append(f"adapter base {adapter_base!r} != trainable_base_repo {trainable_repo!r}")
     if not _SHA.fullmatch(trainable_commit or ""):
         errs.append("trainable_base_commit is not a resolved commit")

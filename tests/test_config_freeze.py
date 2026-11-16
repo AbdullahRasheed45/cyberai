@@ -117,11 +117,33 @@ def test_probe_source_executes_with_marker_even_if_imports_fail():
 
 def test_probe_argv_passes_source_as_one_arg():
     a = probe_argv("img@sha256:" + "a" * 64)
-    assert (
-        a[:3] == ["docker", "run", "--rm"]
-        and "--gpus" in a
-        and a[-3:] == ["python", "-c", PROBE_SRC]
+    assert a[:3] == ["docker", "run", "--rm"] and "--gpus" in a
+    # source travels as ONE env value; the login shell matches the training command
+    assert a[a.index("-e") + 1] == "CYBERAI_PROBE_SRC=" + PROBE_SRC
+    assert a[-3:] == ["bash", "-lc", 'exec python -c "$CYBERAI_PROBE_SRC"']
+    assert a.index("img@sha256:" + "a" * 64) == len(a) - 4  # image precedes the command
+
+
+def test_probe_runs_through_same_login_shell_as_training():
+    from rental import plan as _p
+
+    rc = _p.ResolvedConfig(
+        vllm_image="v@sha256:" + "a" * 64,
+        unsloth_image="u@sha256:" + "b" * 64,
+        host_repo="/repo",
+        host_model_path="/m",
+        host_adapter_path="/repo/runs/r/adapter",
+        train_repo="unsloth/Qwen3-30B-A3B-Instruct-2507",
+        train_commit="c" * 40,
+        serving_repo="s",
+        serving_commit="d" * 40,
+        serving_quant="FP8",
+        serving_provenance="p",
+        dependencies=(),
+        run_id="r",
     )
+    train = _p.train_argv(rc)
+    assert train[-3:-1] == ["bash", "-lc"] and probe_argv("x")[-3:-1] == ["bash", "-lc"]
 
 
 # --- R16: the pilot is forwarded into Docker; missing requested pilot fails ---

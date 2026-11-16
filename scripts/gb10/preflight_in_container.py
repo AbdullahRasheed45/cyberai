@@ -2,9 +2,9 @@
 """Preflight checks that can only run INSIDE the vLLM container (torch/CUDA
 visibility, compute capability, the installed vLLM's actual CLI surface).
 
-Run it with the pinned image before starting the real server:
-    docker run --rm --gpus all -v "$PWD:/work" -w /work <image> \
-        python3 scripts/gb10/preflight_in_container.py
+Run it with the pinned image before starting the real server (GPU flags come from
+rental.docker_runtime, i.e. DOCKER_GPU_MODE; `--gpus all` on a standard host):
+    bash scripts/gb10_serve.sh preflight-container
 
 Exits non-zero and prints a specific, actionable message on each known
 failure mode named in the task brief: CPU-only torch, an incompatible/

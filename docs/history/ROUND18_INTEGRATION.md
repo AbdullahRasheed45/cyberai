@@ -1,5 +1,8 @@
 # Round-18 source intake and readiness delta
 
+> Historical intake record. v1.2 is now present. Current live-lab implementation,
+> validation and remaining rental gates: `RENTAL_RUNBOOK_2026-11-13.md`.
+
 12 November 2026. Source is owner-supplied code, not authority to change project policy.
 
 ## Source reconciliation

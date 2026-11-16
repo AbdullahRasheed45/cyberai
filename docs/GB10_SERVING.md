@@ -1,7 +1,7 @@
 # GB10 serving — operating this setup
 
 This is the operating doc for `scripts/gb10_serve.sh` and friends. It
-supersedes nothing in `docs/STAGE_0_AND_1_EXACT.md` — that runbook's own
+supersedes nothing in `docs/history/STAGE_0_AND_1_EXACT.md` — that runbook's own
 heredoc scripts remain valid if you run them literally — but it is a more
 configurable, more checked version of the same Part B2/B3 work, built per
 a later task that specifically asked us not to assume the runbook's example
@@ -25,7 +25,10 @@ the caveats there, especially:
 
 Run on the GB10 host itself (rented cloud instance or an owned DGX Spark —
 see `docs/EXECUTION_ENVIRONMENTS.md`), not on the Windows dev machine:
-- Docker with NVIDIA Container Toolkit (`--gpus all` must work).
+- Docker with GPU access. On a standard host `--gpus all` works; on a sandboxed
+  provider (Enverge) run `python3 scripts/rental/docker_runtime_setup.py` and
+  `source artifacts/docker_runtime/docker_env.sh` first — every command below then
+  uses the measured GPU flags.
 - `.env` populated from `.env.example` (`HF_TOKEN` if you hit rate limits;
   both configured models are public as of 2026-11-11, so it is not
   required for access).
@@ -44,7 +47,6 @@ bash scripts/gb10_serve.sh preflight-container
 
 # 3. See the exact command that would run, without running it:
 bash scripts/gb10_serve.sh render primary
-bash scripts/gb10_serve.sh render dense_fallback --lora
 
 # 4. Start (detached). First model load is slow (minutes) — don't mistake
 #    "not answering yet" for broken; use smoke-test once, then watch logs.
@@ -66,8 +68,11 @@ uv run python scripts/measure_throughput.py --host-env gb10_cloud --evidence har
 bash scripts/gb10_serve.sh diagnose
 ```
 
-`start`/`render` take `primary` (Qwen3-30B-A3B FP8) or `dense_fallback`
-(Qwen3-14B dense) and an optional `--lora`. `--lora` against `primary` is
+`start`/`render` take `primary` (Qwen3-30B-A3B FP8 — the only model; the dense
+Qwen3-14B fallback was removed by owner decision, DECISIONS_TO_REVISIT.md R-009)
+and an optional `--lora`. On a sandboxed provider (Enverge), first run
+`python3 scripts/rental/docker_runtime_setup.py` and `source
+artifacts/docker_runtime/docker_env.sh` so these commands use the working GPU flags. `--lora` against `primary` is
 **refused** unless `configs/serving.yaml`'s `require_lora_fp8_verified` is
 flipped to `true` — and that should only happen after a real hardware
 correctness check, not merely "the server didn't crash" (see PROVENANCE.md
