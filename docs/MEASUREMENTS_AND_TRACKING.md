@@ -1,3 +1,7 @@
+> Current authority: `MASTER_BRIEF_v2.3.md`, `WORKFLOW_RECONCILIATION_2026-11-16.md`
+> and `RENTAL_START_HERE.md`. Dated counts/research below remain historical evidence,
+> not new hardware results. Use the current guide for trial commands.
+
 # Rental measurements and tracking
 
 Current instrumentation; no actual GB10 measurements have been executed.

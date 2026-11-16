@@ -1,4 +1,4 @@
-<!-- Current specification: docs/MASTER_BRIEF_v2.2.md. Prior cross-references
+<!-- Current specification: docs/MASTER_BRIEF_v2.3.md. Prior cross-references
 record historical proposals; none of the pending amendments is owner-approved
 by this remediation pass. D-3, D-5, D-7 and D-8 remain explicit gates. -->
 
@@ -223,3 +223,17 @@ This file tracks choices made because of a **current constraint** that will chan
   score at equal data; keep attention-only unless all-targets measurably helps at the data
   volume actually available.
 - **Issue:** #21
+
+## 16 November workflow implementation clarification
+
+R-006 / #14: protocol1 now waits up to 130 s between actions so its 120 s model
+call can finish; partial input still has 10 s and the total session 300 s. These are
+trial defaults to remeasure, not a claim of acceptable real model latency.
+R-007 / #16: cooperative per-user rental locks and tracked-deadline/export reserve
+are implemented offline. They do not replace the future privileged lifecycle
+broker. Reconfirm real Docker interruption/cleanup on the allocated machine.
+R-012 / #21: token exposure alone does not establish that expert adapters cannot
+learn. Compare measured complete cost and development quality; never use sealed
+acceptance results to select the target-set/training configuration.
+D-1 through D-9 remain unresolved where previously marked OPEN. This change
+does not approve the pilot exception, service migration or parking amendment.

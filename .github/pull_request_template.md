@@ -8,7 +8,7 @@
 - Area: <!-- serving / training / verifier / lab / authz / infra / docs -->
 
 ## Definition-of-Done items addressed
-<!-- Link the definition-of-done items from docs/MASTER_BRIEF_v2.2.md (Part B) this PR completes. -->
+<!-- Link the definition-of-done items from docs/MASTER_BRIEF_v2.3.md (§§8–12) this PR completes. -->
 - [ ]
 - [ ]
 
@@ -44,4 +44,4 @@
 - [ ] No AI/Claude attribution anywhere in commits, title, or body
 - [ ] Config in YAML/env, no magic numbers in code
 - [ ] Does not merge to main directly (human will merge)
-- [ ] Machine-isolation boundaries respected (lab/ vs Spark; sealed benchmark; §12.2)
+- [ ] Machine-isolation boundaries respected (lab/ vs Spark; sealed benchmark; §§4/9)
