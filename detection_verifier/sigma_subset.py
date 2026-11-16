@@ -30,6 +30,7 @@ from __future__ import annotations
 import math
 import time
 from dataclasses import dataclass, field
+from itertools import product
 from typing import Any
 
 import regex as _regex  # third-party: supports search(..., timeout=)
@@ -46,6 +47,8 @@ MAX_EVENTS = 100000  # corpus-size bound (total-work limit)
 MAX_PARSE_DEPTH = 64  # condition nesting-depth bound
 REGEX_TIMEOUT_S = 0.25  # per-match wall-clock cap (one layer)
 OVERALL_DEADLINE_S = 5.0  # whole-candidate evaluation budget (second layer)
+MAX_COUNTERFACTUAL_ASSIGNMENTS = 4096
+MAX_COUNTERFACTUAL_EVALUATIONS = 100000
 
 _MODIFIERS = {"eq", "contains", "startswith", "endswith", "re"}
 
@@ -260,15 +263,6 @@ class FieldCond:
                 return True
         return False
 
-    def matches_blind(self, event: dict[str, Any], blind_fields: frozenset) -> bool:
-        """Like matches(), but a condition on a BLINDED field (incidental, by the
-        caller's choice) always evaluates True — never restrictive, never
-        contributing coverage. Used to test whether a rule's pass/fail is
-        actually attributable to the fields it is allowed to key on alone."""
-        if self.field_name in blind_fields:
-            return True
-        return self.matches(event)
-
 
 @dataclass
 class Selection:
@@ -277,9 +271,6 @@ class Selection:
 
     def matches(self, event):  # AND across fields
         return all(c.matches(event) for c in self.conds)
-
-    def matches_blind(self, event, blind_fields: frozenset) -> bool:
-        return all(c.matches_blind(event, blind_fields) for c in self.conds)
 
 
 @dataclass
@@ -304,15 +295,6 @@ class Rule:
         # no work and cannot contribute cost or semantics.
         ref = self.referenced_selections()
         res = {n: self.selections[n].matches(event) for n in ref}
-        return _eval_ast(self.condition_ast, res)
-
-    def evaluate_blind(self, event, blind_fields: frozenset) -> bool:
-        """Evaluate with every condition on a blinded field forced True (Astra
-        finding 9): exposes whether the rule's own verdict actually depends on
-        fields outside `blind_fields` — i.e. whether its apparent discrimination
-        is attributable to behavior rather than to an incidental identifier."""
-        ref = self.referenced_selections()
-        res = {n: self.selections[n].matches_blind(event, blind_fields) for n in ref}
         return _eval_ast(self.condition_ast, res)
 
 
@@ -413,25 +395,13 @@ def parse_rule(doc: Any, allowed_fields: set[str], category: str = "process_crea
     return Rule(title, selections, ast, set(allowed_fields))
 
 
-def evaluate_over(
-    rule: Rule, events: list, deadline_abs: float, *, blind_fields: frozenset = frozenset()
-) -> list[bool]:
-    """Evaluate a rule over a corpus under ONE absolute monotonic deadline shared
-    across the whole candidate (caller computes it once). Checks the clock BEFORE
-    and AFTER each event's work, so an event that pushes past the deadline is
-    caught (a cooperative check cannot interrupt a single in-flight event — that
-    is what the OS-enforced isolation worker in isolation.py is for).
-
-    `blind_fields` (Astra finding 9): when non-empty, every condition on one of
-    these fields is forced to match (see Rule.evaluate_blind) instead of being
-    evaluated for real. Pass a schema's incidental fields to measure whether the
-    rule's verdict survives losing the ability to key on them.
-    """
+def evaluate_over(rule: Rule, events: list, deadline_abs: float) -> list[bool]:
+    """Evaluate under the shared absolute monotonic candidate deadline."""
     out = []
     for i, ev in enumerate(events):
         if time.monotonic() > deadline_abs:
             raise RuleExecutionError(f"overall evaluation deadline exceeded before event {i}")
-        out.append(rule.evaluate_blind(ev, blind_fields) if blind_fields else rule.evaluate(ev))
+        out.append(rule.evaluate(ev))
         if time.monotonic() > deadline_abs:
             raise RuleExecutionError(f"overall evaluation deadline exceeded after event {i}")
     return out
@@ -445,3 +415,54 @@ def shannon_entropy(s: str) -> float:
     counts = Counter(s)
     n = len(s)
     return -sum((c / n) * math.log2(c / n) for c in counts.values())
+
+
+def incidental_counterfactual_hits(rule, negatives, contexts, incidental, deadline_abs):
+    """Finite development assurance, not a proof over all possible strings.
+
+    Replace whole field VALUES consistently, retaining real Boolean semantics.
+    Explore the cross-product of observed values, rule literals, missing values,
+    and a fresh sentinel. Each negative is a hit if ANY replacement fires.
+    Refuse work beyond the explicit caps instead of silently sampling/truncating.
+    No acceptance/held-out corpus may be supplied as a development context.
+    """
+    fields = sorted(rule.referenced_fields() & incidental)
+    if not fields:
+        return evaluate_over(rule, negatives, deadline_abs)
+    domains = []
+    assignments = 1
+    for name in fields:
+        values = {ev[name] for ev in contexts if ev.get(name) is not None}
+        for selection_name in rule.referenced_selections():
+            for cond in rule.selections[selection_name].conds:
+                if cond.field_name == name:
+                    values.update(cond.values)
+        sentinel = "__counterfactual_unseen__"
+        while sentinel in values:
+            sentinel += "_"
+        domain = [None, "", sentinel, *sorted(values)]
+        domains.append(domain)
+        assignments *= len(domain)
+        if assignments > MAX_COUNTERFACTUAL_ASSIGNMENTS:
+            raise RuleExecutionError("incidental counterfactual assignment budget exceeded")
+    if assignments * len(negatives) > MAX_COUNTERFACTUAL_EVALUATIONS:
+        raise RuleExecutionError("incidental counterfactual evaluation budget exceeded")
+    hits = []
+    for event in negatives:
+        matched = False
+        for replacement in product(*domains):
+            if time.monotonic() > deadline_abs:
+                raise RuleExecutionError("incidental counterfactual deadline exceeded")
+            changed = dict(event)
+            for name, value in zip(fields, replacement, strict=True):
+                if value is None:
+                    changed.pop(name, None)
+                else:
+                    changed[name] = value
+            matched = rule.evaluate(changed)
+            if time.monotonic() > deadline_abs:
+                raise RuleExecutionError("incidental counterfactual deadline exceeded")
+            if matched:
+                break
+        hits.append(matched)
+    return hits

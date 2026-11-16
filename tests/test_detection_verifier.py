@@ -461,7 +461,7 @@ def test_blinding_incidental_fields_never_rejects_a_genuinely_behavioural_rule(c
     """The ablation must not create false positives: a rule that references an
     incidental field only as EXTRA narrowing on top of sufficient behavioural
     discrimination (the behaviour alone already clears cmin/fpmax) still
-    verifies, because blinding a condition can only make it MORE permissive."""
+    verifies, under consistent field-value counterfactuals."""
     pres, absent, _ = corpora
     rule_doc = yaml.safe_load((RULES / "good.yml").read_text(encoding="utf-8"))
     rule_doc["detection"]["sel_extra_incidental"] = {"User": pres[0]["User"]}
@@ -476,10 +476,10 @@ def test_blinding_incidental_fields_never_rejects_a_genuinely_behavioural_rule(c
     assert v.metrics.behavior_attributable is True
 
 
-def test_evaluate_over_blind_fields_forces_incidental_conditions_true():
+def test_counterfactuals_replace_consistent_incidental_values():
     """Unit-level check of the primitive itself (sigma_subset.evaluate_over),
     independent of check_rule's wiring."""
-    from detection_verifier.sigma_subset import evaluate_over
+    from detection_verifier.sigma_subset import evaluate_over, incidental_counterfactual_hits
 
     rule = parse_rule(
         {
@@ -492,9 +492,9 @@ def test_evaluate_over_blind_fields_forces_incidental_conditions_true():
     events = [{"User": "only-this-one"}, {"User": "someone-else"}]
     deadline = time.monotonic() + 5.0
     normal = evaluate_over(rule, events, deadline)
-    blind = evaluate_over(rule, events, deadline, blind_fields=frozenset({"User"}))
+    blind = incidental_counterfactual_hits(rule, events, events, frozenset({"User"}), deadline)
     assert normal == [True, False]  # the real, identity-keyed behaviour
-    assert blind == [True, True]  # blinding User makes the condition a no-op
+    assert blind == [True, True]  # either event can carry the positive User value
 
 
 # --- assurance ---------------------------------------------------------------
