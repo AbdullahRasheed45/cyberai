@@ -168,3 +168,11 @@ packing stress rather than coverage.
 Remaining GPU-only checks: pinned image and CUDA compatibility, Qwen structured
 plan quality, adapter deployment, actual token/runtime/memory measurements,
 and train-save-fresh-reload workflow completion.
+
+
+## 16 November 2026 — current handoff reference
+
+This dated record remains historical. Current remediation evidence, unbuilt task
+contracts and remaining machine checks are in `../HANDOFF_2026-11-16.md`,
+`../REVIEW_FIX_LEDGER_2026-11-16.md` and `../MASTER_BRIEF_v2.2.md`. No GPU or real
+SSH isolation check is marked passed by the offline remediation.
