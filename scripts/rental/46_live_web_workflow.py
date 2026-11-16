@@ -11,7 +11,7 @@ import urllib.request
 from pathlib import Path
 
 from rental.clients import parse_completion
-from rental.live_web import LabSession, run_loop, ssh_worker_argv
+from rental.live_web import LabSession, run_loop, ssh_worker_argv, validate_remote_worker
 from rental.paths import artifact_dir
 
 
@@ -26,6 +26,7 @@ def main():
         if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]{0,63}", host):
             raise ValueError("LAB_SSH_HOST must be a configured SSH alias")
         session = LabSession(ssh_worker_argv(host))
+        validate_remote_worker(session.ready_info, os.environ.get("LAB_EXPECTED_HOSTNAME"))
 
         def complete(messages):
             request = urllib.request.Request(

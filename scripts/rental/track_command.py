@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import platform
 import shutil
@@ -17,6 +18,23 @@ import subprocess
 import time
 from datetime import UTC, datetime
 from pathlib import Path
+
+
+def bounded_timeout(requested, grace, stop_utc, reserve, now=None):
+    """Reserve export time; UTC is converted once to a monotonic duration budget."""
+    if not all(math.isfinite(n) for n in (requested, grace, reserve)):
+        raise ValueError("time limits must be finite")
+    if requested <= 0 or grace < 0 or reserve < 0:
+        raise ValueError("invalid time limit")
+    if not stop_utc:
+        return requested
+    stop = datetime.fromisoformat(stop_utc.replace("Z", "+00:00"))
+    if stop.tzinfo is None:
+        raise ValueError("RENTAL_STOP_UTC must have a timezone")
+    available = (stop - (now or datetime.now(UTC))).total_seconds() - reserve - grace
+    if available <= 0:
+        raise ValueError("rental deadline/export reserve reached; do not start more work")
+    return min(requested, available)
 
 
 def sample():
@@ -79,6 +97,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--timeout", type=float, default=21600)
+    parser.add_argument("--reserve-seconds", type=float, default=10800)
     parser.add_argument(
         "--grace",
         type=float,
@@ -91,6 +110,13 @@ def main():
     command = args.command[1:] if args.command[:1] == ["--"] else args.command
     if not command or args.timeout <= 0 or args.grace < 0:
         parser.error("a command, a positive timeout and a non-negative grace are required")
+    requested_timeout = args.timeout
+    try:
+        args.timeout = bounded_timeout(
+            args.timeout, args.grace, os.environ.get("RENTAL_STOP_UTC"), args.reserve_seconds
+        )
+    except ValueError as exc:
+        parser.error(str(exc))
     log = args.out.with_suffix(".log")
     if args.out.exists() or log.exists():
         parser.error("choose new output paths; prior evidence is never overwritten")
@@ -101,6 +127,10 @@ def main():
         "platform": platform.platform(),
         "exit_code": None,
         "timed_out": False,
+        "requested_timeout_s": requested_timeout,
+        "effective_timeout_s": args.timeout,
+        "rental_stop_utc": os.environ.get("RENTAL_STOP_UTC"),
+        "export_reserve_s": args.reserve_seconds,
         "state": "STARTING",
         "samples": [],
         "log": str(log),

@@ -43,6 +43,40 @@ def fmt(value, digits=2, unit=""):
     return f"{value}{unit}"
 
 
+def workload_outcome(record):
+    if "task_success" in record:
+        return (
+            "VERIFIED WORKFLOW"
+            if record["task_success"] is True
+            else ("FAILED: " + str(record.get("failure_category") or "WORKFLOW_NOT_VERIFIED"))
+        )
+    return record.get("outcome", NA)
+
+
+def workflow_rows(artifacts):
+    rows = []
+    for run in sorted(artifacts.glob("run_*")):
+        for label, directory in (("base", run / "baseline"), ("adapter", run)):
+            record = load(directory / "workload_result.json")
+            if not record or "task_success" not in record:
+                continue
+            usage = record.get("model_usage") or {}
+            rows.append(
+                [
+                    run.name,
+                    label,
+                    workload_outcome(record),
+                    usage.get("prompt_tokens", NA),
+                    usage.get("completion_tokens", NA),
+                    record.get("model_calls", NA),
+                    record.get("action_attempts", NA),
+                    record.get("action_count", NA),
+                    fmt(record.get("complete_runtime_s"), 3),
+                ]
+            )
+    return rows
+
+
 def table(headers, rows):
     out = ["| " + " | ".join(headers) + " |", "|" + "---|" * len(headers)]
     out += ["| " + " | ".join(str(c) for c in row) + " |" for row in rows]
@@ -65,7 +99,7 @@ def lifecycle_rows(artifacts: Path):
                 ", ".join(releases) or NA,
                 orch.get("memory_telemetry", NA),
                 (orch.get("docker_runtime") or {}).get("gpu_mode", NA),
-                workload.get("outcome", NA),
+                workload_outcome(workload),
             ]
         )
         inf = load(run_dir / "inference_measurements.json")
@@ -168,6 +202,26 @@ def build(artifacts: Path, runs: Path, round_tokens=None, hourly_rate=None) -> s
     ]
     headers = ["Run", "Status", "Last phase", "Memory released", "Memory source", "GPU mode"]
     lines += table([*headers, "Workload outcome"], life) if life else [NA]
+    lines += ["", "## Web workflow (development only; no learning-gain claim)", ""]
+    workflow = workflow_rows(artifacts)
+    lines += (
+        table(
+            [
+                "Run",
+                "Model",
+                "Outcome",
+                "Prompt tokens",
+                "Completion tokens",
+                "Model calls",
+                "Action attempts",
+                "Completed actions",
+                "Complete runtime s",
+            ],
+            workflow,
+        )
+        if workflow
+        else [NA]
+    )
     lines += ["", "## Serving speed (base model, FP8)", ""]
     lines += (
         table(

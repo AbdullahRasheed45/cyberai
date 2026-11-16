@@ -5,11 +5,25 @@ from __future__ import annotations
 import contextlib
 import json
 import queue
+import socket
 import subprocess
 import threading
 import time
 
 MAX_RESPONSE_BYTES = 1024 * 1024
+
+
+def validate_remote_worker(info, expected_host):
+    """Same fail-closed handshake for scripted and model-driven remote runs.
+
+    Hostname corroborates pinned SSH host keys; it is not isolation attestation.
+    """
+    if not expected_host or info.get("host") != expected_host:
+        raise ValueError("worker identity does not match configured expected host")
+    if info["host"] == socket.gethostname():
+        raise ValueError("worker must run on the separate lab host")
+    if info.get("scenario") != "owned-http-authz-v1" or info.get("protocol") != 1:
+        raise ValueError("wrong forced-command worker protocol")
 
 
 def ssh_worker_argv(host):
@@ -108,12 +122,16 @@ def run_loop(session, complete, max_actions=12):
     ]
     usage = {"prompt_tokens": 0, "completion_tokens": 0}
     trace = []
+    model_calls = 0
+    action_attempts = 0
     try:
         for _ in range(max_actions):
+            model_calls += 1
             reply = complete(messages)
+            action_attempts += 1
             for key in usage:
                 count = reply.get(key)
-                if not isinstance(count, int) or count < 0:
+                if type(count) is not int or count < 0:
                     raise ValueError(f"missing real token usage: {key}")
                 usage[key] += count
             action = json.loads(reply["content"])
@@ -129,14 +147,18 @@ def run_loop(session, complete, max_actions=12):
                     {"role": "user", "content": json.dumps(result)},
                 ]
             )
-            if action["kind"] == "finish":
+            if action["kind"] == "finish" or "task_success" in result:
                 return {
                     **result,
                     "model_usage": usage,
                     "action_count": len(trace),
+                    "action_attempts": action_attempts,
+                    "model_calls": model_calls,
                     "runtime_s": time.monotonic() - started,
                     "messages": messages,
-                    "failure_category": None if result["task_success"] else "WORKFLOW_NOT_VERIFIED",
+                    "failure_category": None
+                    if result["task_success"]
+                    else (result.get("failure_category") or "WORKFLOW_NOT_VERIFIED"),
                 }
         raise TimeoutError("agent action budget exhausted")
     except Exception as exc:
@@ -146,6 +168,8 @@ def run_loop(session, complete, max_actions=12):
             "error": str(exc),
             "model_usage": usage,
             "action_count": len(trace),
+            "action_attempts": action_attempts,
+            "model_calls": model_calls,
             "runtime_s": time.monotonic() - started,
             "messages": messages,
         }

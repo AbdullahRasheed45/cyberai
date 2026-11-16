@@ -89,3 +89,32 @@ def test_empty_trial_and_no_overwrite(tmp_path):
     assert subprocess.run(cmd, capture_output=True, text=True).returncode == 0
     assert "not measured" in out.read_text(encoding="utf-8")
     assert subprocess.run(cmd, capture_output=True, text=True).returncode == 2  # refuses overwrite
+
+
+def test_report_includes_web_failures_usage_and_baseline(tmp_path):
+    art, runs = _trial(tmp_path)
+    run = art / "run_r1"
+    (run / "baseline").mkdir()
+    (run / "baseline" / "workload_result.json").write_text(
+        json.dumps(
+            {
+                "task_success": True,
+                "model_usage": {"prompt_tokens": 123, "completion_tokens": 12},
+                "model_calls": 4,
+                "action_attempts": 4,
+                "action_count": 4,
+                "complete_runtime_s": 11.5,
+            }
+        )
+    )
+    (run / "workload_result.json").write_text(
+        json.dumps(
+            {
+                "task_success": False,
+                "failure_category": "TIMEOUT",
+            }
+        )
+    )
+    report = _module().build(art, runs)
+    assert "FAILED: TIMEOUT" in report
+    assert "| base | VERIFIED WORKFLOW | 123 | 12 | 4 | 4 | 4 | 11.5 |" in report

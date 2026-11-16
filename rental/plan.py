@@ -91,6 +91,7 @@ class ResolvedConfig:
     hparams: object = field(default_factory=_default_training_hparams)
     train_precision: str = "qlora_4bit"
     train_target_set: str = "attention"
+    training_config_rel: str = "configs/training.yaml"
 
     @property
     def url(self) -> str:
@@ -179,9 +180,16 @@ def resolve(freeze: dict, env: dict | None = None) -> ResolvedConfig:
     except Exception as exc:
         raise FreezeInvalid(f"serving config invalid: {exc}") from None
     try:
-        hparams = training_config.load(
-            env.get("TRAINING_CONFIG") or REPO_ROOT / training_config.DEFAULT_PATH
-        )
+        hp_path = Path(env.get("TRAINING_CONFIG") or REPO_ROOT / training_config.DEFAULT_PATH)
+        hparams = training_config.load(hp_path)
+        # Only overridden files must belong to the mounted checkout. The default
+        # is resolved from this installed module (also supports pure temp-cwd tests).
+        hp_rel = training_config.DEFAULT_PATH
+        if env.get("TRAINING_CONFIG"):
+            try:
+                hp_rel = hp_path.resolve().relative_to(Path(repo).resolve()).as_posix()
+            except ValueError:
+                raise FreezeInvalid("TRAINING_CONFIG must remain under the repo") from None
     except training_config.TrainingConfigError as exc:
         raise FreezeInvalid(f"training config invalid: {exc}") from None
     try:
@@ -228,6 +236,7 @@ def resolve(freeze: dict, env: dict | None = None) -> ResolvedConfig:
         hparams=hparams,
         train_precision=train_precision,
         train_target_set=train_target_set,
+        training_config_rel=hp_rel,
     )
 
 
@@ -334,6 +343,8 @@ def train_argv(rc):
         "docker",
         "run",
         "--rm",
+        "--name",
+        f"cyberai_train_{rc.run_id}",
         *docker_runtime.gpu_args(),
         *docker_runtime.ipc_args(),
         *docker_runtime.ulimit_args(),
@@ -361,6 +372,8 @@ def train_argv(rc):
         f"TRAIN_PRECISION={rc.train_precision}",  # explicit per run: qlora_4bit | bf16
         "-e",
         f"TRAIN_TARGET_SET={rc.train_target_set}",  # explicit per run: attention | all
+        "-e",
+        f"TRAINING_CONFIG=/work/{rc.training_config_rel}",
         "-e",
         "PYTHONUNBUFFERED=1",  # live console log for the tracker during training
         "-e",
@@ -413,6 +426,15 @@ def workload_cmd(rc):
         **host_env(rc, rc.adapter_served_id),
         "BASE_SERVED_MODEL": rc.base_served_id,  # for the base-vs-adapter probe
         "WORKLOAD_DOMAIN": rc.workload_domain,
+    }
+
+
+def baseline_workload_cmd(rc):
+    argv, env = workload_cmd(rc)
+    return argv, {
+        **env,
+        "SERVED_MODEL": rc.base_served_id,
+        "ARTIFACT_DIR": f"{rc.artifact_dir}/baseline",
     }
 
 

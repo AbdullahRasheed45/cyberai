@@ -16,7 +16,7 @@ class ProtocolEnd(Exception):
         super().__init__(category)
 
 
-def action_lines(fd, idle_timeout):
+def action_lines(fd, idle_timeout, partial_timeout=10):
     lines = queue.Queue(maxsize=1)
 
     def read():
@@ -28,6 +28,8 @@ def action_lines(fd, idle_timeout):
                     lines.put(ProtocolEnd("EOF"))
                     return
                 for byte in chunk:
+                    if not pending:
+                        lines.put(("line_started", time.monotonic()))
                     pending.append(byte)
                     if len(pending) > MAX_ACTION_BYTES:
                         lines.put(ProtocolEnd("INPUT_TOO_LARGE"))
@@ -41,8 +43,9 @@ def action_lines(fd, idle_timeout):
     # Raw os.read avoids holding a Python buffered-stream lock on shutdown.
     threading.Thread(target=read, daemon=True).start()
     deadline = time.monotonic() + SESSION_SECONDS
+    line_deadline = min(deadline, time.monotonic() + idle_timeout)
     while True:
-        remaining = min(idle_timeout, deadline - time.monotonic())
+        remaining = line_deadline - time.monotonic()
         if remaining <= 0:
             raise ProtocolEnd("TIMEOUT")
         try:
@@ -51,7 +54,11 @@ def action_lines(fd, idle_timeout):
             raise ProtocolEnd("TIMEOUT") from exc
         if isinstance(line, ProtocolEnd):
             raise line
+        if isinstance(line, tuple):
+            line_deadline = min(line_deadline, line[1] + partial_timeout)
+            continue
         yield line
+        line_deadline = min(deadline, time.monotonic() + idle_timeout)
 
 
 def unique_object(pairs):

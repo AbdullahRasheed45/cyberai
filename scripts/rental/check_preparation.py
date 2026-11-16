@@ -18,9 +18,11 @@ def main():
     blockers = validate_freeze(yaml.safe_load(freeze.read_text(encoding="utf-8")))
     required = ["MODEL_PATH", "EVIDENCE_EXPORT_DIR", "RENTAL_STOP_UTC"]
     commands = ["docker"]
+    if os.name == "posix":
+        commands.append("flock")  # standalone training matrix shares the lifecycle lock
     domain = os.environ.get("WORKLOAD_DOMAIN", "web")
     if domain == "web":
-        required.append("LAB_SSH_HOST")
+        required.extend(["LAB_SSH_HOST", "LAB_EXPECTED_HOSTNAME"])
         commands.append("ssh")  # only the live web lab is reached over SSH
     elif domain != "detection":
         blockers.append("WORKLOAD_DOMAIN must be web or detection")

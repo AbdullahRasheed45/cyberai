@@ -68,6 +68,18 @@ def test_snapshot_manifest_roundtrip_and_tamper(tmp_path):
     assert any("missing snapshot file" in e for e in verify_against_manifest(str(tmp_path), man))
 
 
+def test_snapshot_refuses_empty_manifest_and_unlisted_files(tmp_path):
+    (tmp_path / "config.json").write_text("{}")
+    assert verify_against_manifest(str(tmp_path), {})
+    man = build_manifest(str(tmp_path))
+    (tmp_path / "extra.json").write_text("{}")
+    assert any("unlisted snapshot file" in e for e in verify_against_manifest(str(tmp_path), man))
+
+
+def test_snapshot_refuses_manifest_path_escape(tmp_path):
+    assert verify_against_manifest(str(tmp_path), {"../outside": "0" * 64})
+
+
 # --- #5: pilot targets are known-good rules that VERIFY -----------------------
 
 

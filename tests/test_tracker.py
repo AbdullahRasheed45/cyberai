@@ -3,6 +3,23 @@ import json
 import subprocess
 import sys
 
+import pytest
+
+
+def test_rental_deadline_reserves_export_and_cleanup_time():
+    from datetime import UTC, datetime
+
+    spec = importlib.util.spec_from_file_location("tracker", "scripts/rental/track_command.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    now = datetime(2026, 11, 16, tzinfo=UTC)
+    assert module.bounded_timeout(21600, 600, "2026-11-16T04:00:00Z", 10800, now) == 3000
+    for stop in ("2026-11-16T03:00:00Z", "2026-11-16T04:00:00", "invalid"):
+        with pytest.raises(ValueError):
+            module.bounded_timeout(21600, 600, stop, 10800, now)
+    with pytest.raises(ValueError):
+        module.bounded_timeout(float("nan"), 600, None, 0)
+
 
 def test_command_tracker_preserves_failure_and_output(tmp_path):
     output = tmp_path / "command.json"
