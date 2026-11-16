@@ -31,6 +31,7 @@ from .sigma_subset import (
     RuleExecutionError,
     RuleSyntaxError,
     evaluate_over,
+    incidental_counterfactual_hits,
     parse_rule,
     shannon_entropy,
 )
@@ -120,7 +121,7 @@ class Verdict:
     outcome: str
     metrics: DetectionMetrics
     verifier_name: str = "detection.process_creation"  # overridden per telemetry category
-    verifier_version: str = "0.3.0"
+    verifier_version: str = "0.4.0"
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -248,19 +249,14 @@ def check_rule(
         pos_hits = evaluate_over(rule, behaviour_present, deadline_abs)
         neg_hits = evaluate_over(rule, behaviour_absent, deadline_abs)
         oos_hits = evaluate_over(rule, oos, deadline_abs) if oos else []
-        # Astra finding 9: has_behavioral_field only checks that a behavioural
-        # field is REFERENCED, not that it is doing any discriminating work. A
-        # rule can AND/OR in an incidental-field condition (e.g. a specific
-        # RequestId/SourceIp) that does all the real separating, padded with a
-        # behavioural condition that is true for every record and contributes
-        # nothing. Re-run fp_burden with every incidental-field condition
-        # forced to match (never restrictive): if the rule depends on an
-        # incidental field to keep fp_burden down, blinding that field can only
-        # raise fp_burden (True is maximally permissive) — so an increase above
-        # fpmax here proves the false-positive control was coming from identity,
-        # not behaviour, under the SAME deadline budget as the real run.
-        neg_hits_blind = evaluate_over(
-            rule, behaviour_absent, deadline_abs, blind_fields=schema.incidental
+        # Counterfactuals change consistent event values, not predicate truth:
+        # forcing predicates True is unsound under NOT and contradictory tests.
+        neg_hits_blind = incidental_counterfactual_hits(
+            rule,
+            behaviour_absent,
+            behaviour_present + behaviour_absent,
+            schema.incidental,
+            deadline_abs,
         )
         m.execution_valid = True
     except RuleExecutionError as e:
@@ -306,8 +302,9 @@ def check_rule(
         if not m.behavior_attributable:
             m.reasons.append(
                 f"incidental-dependent: fp_burden rises to "
-                f"{m.fp_burden_incidental_blind:.2f} > FPmax {fpmax:.2f} once incidental "
-                f"fields {sorted(schema.incidental)} are blinded — the rule's false-positive "
+                f"{m.fp_burden_incidental_blind:.2f} > FPmax {fpmax:.2f} "
+                "under finite counterfactual changes to incidental "
+                f"fields {sorted(schema.incidental)} are varied — the rule's false-positive "
                 "control depends on an incidental identifier, not genuine behavioural "
                 "discrimination (Astra finding 9)"
             )
