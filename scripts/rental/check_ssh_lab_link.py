@@ -30,7 +30,7 @@ import socket
 import sys
 from pathlib import Path
 
-from rental.live_web import LabSession, run_loop
+from rental.live_web import LabSession, run_loop, ssh_worker_argv
 
 HOST_ALIAS_RE = re.compile(r"[A-Za-z][A-Za-z0-9_-]{0,63}")
 
@@ -50,23 +50,12 @@ def ssh_argv(host: str) -> list[str]:
     """The exact SSH invocation, identical in shape to 46_live_web_workflow.py's,
     so a passing rehearsal here is evidence about the SAME transport the real
     web workload will use."""
-    return [
-        "ssh",
-        "-T",
-        "-o",
-        "BatchMode=yes",
-        "-o",
-        "ConnectTimeout=10",
-        "-o",
-        "StrictHostKeyChecking=yes",
-        host,
-        "python3",
-        "-m",
-        "lab.web_workflow.worker",
-    ]
+    return ssh_worker_argv(host)
 
 
-def verify_remote(remote_host: str | None, local_host: str) -> str:
+def verify_remote(
+    remote_host: str | None, local_host: str, expected_host: str | None = None
+) -> str:
     """Return remote_host if it genuinely identifies a different machine; raise
     LinkNotExercisedError otherwise. Pure — no I/O, directly unit-testable."""
     if not remote_host or remote_host == local_host:
@@ -74,6 +63,8 @@ def verify_remote(remote_host: str | None, local_host: str) -> str:
             f"worker reported host={remote_host!r}; expected a remote host distinct "
             f"from this machine ({local_host!r}) — the SSH link was not actually exercised"
         )
+    if expected_host is not None and remote_host != expected_host:
+        raise LinkNotExercisedError("worker identity does not match configured expected host")
     return remote_host
 
 
@@ -93,29 +84,36 @@ def scripted_actions():
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--expected-host", default=os.environ.get("LAB_EXPECTED_HOSTNAME"))
     args = parser.parse_args()
     args.out.parent.mkdir(parents=True, exist_ok=True)
 
     try:
         host = validate_host_alias(os.environ.get("LAB_SSH_HOST", ""))
+        if not args.expected_host:
+            raise ValueError("LAB_EXPECTED_HOSTNAME or --expected-host is required")
     except ValueError as exc:
         print(json.dumps({"rehearsal": "ABORTED", "reason": str(exc)}), file=sys.stderr)
         return 1
 
     local_host = socket.gethostname()
-    session = LabSession(ssh_argv(host))
+    session = None
     remote_host = None
     try:
-        remote_host = verify_remote(session.ready_info.get("host"), local_host)
+        session = LabSession(ssh_argv(host))
+        remote_host = verify_remote(session.ready_info.get("host"), local_host, args.expected_host)
+        if session.ready_info.get("scenario") != "owned-http-authz-v1":
+            raise LinkNotExercisedError("wrong forced-command worker protocol")
         record = run_loop(session, scripted_actions())
-    except LinkNotExercisedError as exc:
+    except Exception as exc:
         record = {
             "task_success": False,
-            "failure_category": "LinkNotExercisedError",
+            "failure_category": type(exc).__name__,
             "error": str(exc),
         }
     finally:
-        session.close()
+        if session:
+            session.close()
 
     record["provenance"] = {
         "source": "scripted_ssh_link_rehearsal",
@@ -123,6 +121,8 @@ def main() -> int:
         "lab_ssh_host_alias": host,
         "remote_host": remote_host,
         "local_host": local_host,
+        "expected_host": args.expected_host,
+        "isolation_verified": False,
         "model_executed": False,
     }
     args.out.write_text(json.dumps(record) + "\n", encoding="utf-8")

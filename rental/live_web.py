@@ -9,6 +9,26 @@ import subprocess
 import threading
 import time
 
+MAX_RESPONSE_BYTES = 1024 * 1024
+
+
+def ssh_worker_argv(host):
+    """Shared transport for the rehearsal and the model-driven workload."""
+    return [
+        "ssh",
+        "-T",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=10",
+        "-o",
+        "StrictHostKeyChecking=yes",
+        host,
+        "python3",
+        "-m",
+        "lab.web_workflow.worker",
+    ]
+
 
 class LabSession:
     def __init__(self, command: list[str], timeout: float = 15):
@@ -21,10 +41,13 @@ class LabSession:
             text=True,
             bufsize=1,
         )
-        self.lines = queue.Queue()
+        self.lines = queue.Queue(maxsize=2)
 
         def read():
-            for line in self.process.stdout:
+            while line := self.process.stdout.readline(MAX_RESPONSE_BYTES + 1):
+                if len(line.encode("utf-8")) > MAX_RESPONSE_BYTES:
+                    self.lines.put(ValueError("lab response exceeds byte limit"))
+                    return
                 self.lines.put(line)
             self.lines.put(None)
 
@@ -45,6 +68,8 @@ class LabSession:
             raise TimeoutError("lab response timed out") from exc
         if line is None:
             raise RuntimeError("lab controller exited")
+        if isinstance(line, Exception):
+            raise line
         return json.loads(line)
 
     def action(self, kind):
