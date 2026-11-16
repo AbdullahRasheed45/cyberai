@@ -15,9 +15,9 @@ typed configs and evidence schemas; a narrow, assurance-tested detection verifie
 the phased rental lifecycle (`rental/`) that serves Qwen3-30B-A3B (FP8), measures
 it, trains a 4-bit QLoRA adapter, reloads and deploys it, and exports hashed
 evidence, with a live tracker. Nothing has run on a GPU yet. There is no learning
-engine, model registry or sealed benchmark yet — see `docs/MASTER_BRIEF_v2.0.md` §4 (design) and §8–§12 (the build, stage by stage).
+engine, model registry or sealed benchmark yet — see `docs/MASTER_BRIEF_v2.2.md` §4 (design) and §8–§12 (the build, stage by stage).
 
-**The design, status and the whole build plan:** `docs/MASTER_BRIEF_v2.0.md` — the single governing document. `docs/README.md` indexes every other doc.
+**The design, status and the whole build plan:** `docs/MASTER_BRIEF_v2.2.md` — the single governing document. `docs/README.md` indexes every other doc.
 
 **Running the trial:** start with `docs/OWNER_GUIDE_GB10_TRIAL.md` (plain English),
 then `docs/RENTAL_START_HERE.md` (exact commands).
@@ -26,11 +26,11 @@ then `docs/RENTAL_START_HERE.md` (exact commands).
 
 ```
 infrastructure  →  assured web verifier  →  verified-volume measurement  →  eligible SFT experiment
-   (this repo)       (Stage 2, brief §6)      (Stage 1.5 gate, §7.8)          (Stage 2 proof, §17)
+   (this repo)       (Stage 2A, §7)          (pilot/volume decision, §11)      (Stage 2B, §11)
 ```
 
 Each stage is gated on the previous one's Definition-of-Done
-(`docs/MASTER_BRIEF_v2.0.md` §8–§12). In particular: **no training, no
+(`docs/MASTER_BRIEF_v2.2.md` §8–§12). In particular: **no training, no
 scoring, before the verifier it depends on exists and passes its own
 assurance suite** (CLAUDE.md PRIME DIRECTIVE #1).
 

@@ -1,5 +1,16 @@
 # CLAUDE.md — Project Handoff & Operating Instructions
 
+## Current correction — 16 November 2026
+
+Read `docs/MASTER_BRIEF_v2.2.md`, `docs/REVIEW_FIX_LEDGER_2026-11-16.md` and
+`docs/HANDOFF_2026-11-16.md` first. v2.2 replaces earlier conflicting build-task
+contracts; v2.0/v2.1 and the dated briefs/handoffs remain historical evidence.
+Preserve the owner's six-domain product targets and all unresolved decisions.
+CODE/SPEC/OPEN and hardware-unverified states must stay distinct. Historical
+service-layout instructions below do not authorize deletion while R-011/D-8 is
+open. No paid compute, purchase, merge or production deployment is authorized.
+
+
 ## Current product context (12 November 2026)
 
 **15 November 2026:** `docs/MASTER_BRIEF_v2.0.md` is the single governing document — system design, data contracts, the cheat-proof verifier specification, and every stage as a numbered task list a coding agent follows line by line. It supersedes all earlier briefs, the architecture doc and the build plan (now in `docs/history/`; `docs/README.md` indexes everything). Read v2.0 first, then `docs/OWNER_GUIDE_GB10_TRIAL.md` for the trial.

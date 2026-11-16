@@ -1,14 +1,22 @@
 # docs/ — what each file is
 
-The single governing document is **`MASTER_BRIEF_v2.0.md`**. Everything else here is either an
+The single governing document is **`MASTER_BRIEF_v2.2.md`**. Everything else here is either an
 operational runbook for the GB10 trial or a focused reference. Superseded briefs and dated
-snapshots live in `history/` (kept for provenance; v2.0 supersedes them where they differ).
+snapshots live in `history/` (kept for provenance; v2.2 supersedes their conflicting task contracts).
+
+## Current remediation evidence
+
+- `REVIEW_FIX_LEDGER_2026-11-16.md`: all 29 findings and six follow-up defects,
+  separating tested code from future specifications and open decisions.
+- `HANDOFF_2026-11-16.md`: actual offline results and unexecuted machine checks.
+- `CLAUDE_HANDOFF_PROMPT_2026-11-16.md`: owner-voice prompt for the next session.
+- `MASTER_BRIEF_v2.1.md` and `history/MASTER_BRIEF_v2.0.md`: preserved prior versions.
 
 ## Start here
 
 | File | What it is |
 |---|---|
-| **`MASTER_BRIEF_v2.0.md`** | **The whole project in one file.** Part A: system design, the twelve rules, data contracts, the cheat-proof verifier specification. Part B: every stage (1A → 6) as an ordered list of numbered tasks, each naming the files, behaviour, tests and the command that proves it done. A coding agent builds the project by working through it. Read this first. |
+| **`MASTER_BRIEF_v2.2.md`** | **The whole project in one file.** Part A: system design, the twelve rules, data contracts, the cheat-proof verifier specification. Part B: every in-scope stage as an ordered list of numbered tasks, each naming the files, behaviour, tests and the command that proves it done. A coding agent builds the project by working through it. Read this first. |
 | `diagram-master-comprehensive.drawio` | The system in one picture (open in draw.io). |
 
 ## The GB10 trial (Stage 1A — built, tested offline, not yet run)
@@ -44,9 +52,9 @@ These were the path to v2.0; v2.0 folds in everything in them that still holds.
 | `MASTER_PROJECT_BRIEF_v1.2_FOR_CRITIQUE.md` | v1.1 condensed, with the verified GB10 setup. |
 | `MASTER_PROJECT_BRIEF_v1.3.md` | Added the six-domain curriculum and offensive foregrounding. |
 | `MASTER_PROJECT_BRIEF_v1.5.md` | Added the one-Spark recipe (Part II) and the stage-by-stage plan (Part III). v2.0's direct parent. |
-| `BRIEF_v1.2_CORRECTIONS_AND_SETUP.md` | The known-good GB10 container/setup appendix (now v2.0 §21). |
-| `ARCHITECTURE.md` | The original service-by-service code structure (the 16-network-service design v2.0 §3 C-2 replaces with one application; useful as the detailed component reference). |
-| `SONNET_COMPLETE_BUILD_PLAN.md` | The original all-stages build plan with definitions of done (now v2.0 Part B). |
+| `BRIEF_v1.2_CORRECTIONS_AND_SETUP.md` | The known-good GB10 container/setup appendix (historical setup reference). |
+| `ARCHITECTURE.md` | The original service-by-service code structure (the 16-network-service design C-2 proposes replacing, pending R-011/D-8 approval, with one application; useful as the detailed component reference). |
+| `SONNET_COMPLETE_BUILD_PLAN.md` | The original all-stages build plan with definitions of done (historical build plan). |
 | `STAGE_0_AND_1_EXACT.md` | The original line-by-line Stage 0/1 runbook (now the trial runbooks above). |
 | `PRODUCT_ALIGNMENT_AND_SIX_DOMAIN_CURRICULUM.md`, `CURRENT_PRODUCT_SPEC.md` | The owner's product-direction notes v2.0 consolidates. |
 | `CODEX_PROJECT_HANDOFF_2026-11-12.md`, `PRE_RENTAL_READINESS.md`, `ROUND18_INTEGRATION.md` | Dated handoff and readiness snapshots. |

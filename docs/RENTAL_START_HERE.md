@@ -1,3 +1,9 @@
+> 16 November correction: current specification/evidence are in
+> `MASTER_BRIEF_v2.2.md` and `HANDOFF_2026-11-16.md`. For the web trial, deploy
+> the existing protocol1 `lab.web_workflow.worker --from-ssh`, not the unbuilt
+> kit worker. Set LAB_SSH_HOST and LAB_EXPECTED_HOSTNAME and run the scripted
+> SSH rehearsal in v2.2 §9. Local reference runs do not establish remote isolation.
+
 # Start here: 24-hour DGX Spark hardware trial
 
 New to this? Read `OWNER_GUIDE_GB10_TRIAL.md` first: the same steps explained in plain

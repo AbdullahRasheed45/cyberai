@@ -1,3 +1,7 @@
+<!-- Current specification: docs/MASTER_BRIEF_v2.2.md. Prior cross-references
+record historical proposals; none of the pending amendments is owner-approved
+by this remediation pass. D-3, D-5, D-7 and D-8 remain explicit gates. -->
+
 # Decisions to Revisit
 
 This file tracks choices made because of a **current constraint** that will change later. When the trigger fires, work through the matching open GitHub issues (labelled with the trigger, e.g. `revisit-on-dgx`) and resolve each.
@@ -99,7 +103,7 @@ This file tracks choices made because of a **current constraint** that will chan
 - **Trigger:** Stage 1.5 measurement runs; or a ~100-trajectory pilot SFT result exists.
 - **Action on trigger:** Apply the two-way revision rule (lower the bar only if a ~100-pilot beats baseline; park Loop B if a full round fails twice). **Do not silently edit the pre-registered numbers** — revise only per the rule, and log the revision here.
 - **Issue:** #6
-- **Cross-reference (Astra finding 29, 15 Nov 2026):** `docs/MASTER_BRIEF_v2.1.md` §7.8/D-3 **proposes** replacing "park Loop B for a year on the second failure" with "diagnose and suspend automatic promotion; continue controlled first-SFT research toward the January target." This is a PROPOSED amendment, not yet owner-approved — the rule above, as written, is what governs until the owner confirms D-3.
+- **Cross-reference (Astra finding 29, 15 Nov 2026):** `docs/MASTER_BRIEF_v2.2.md` §17/D-3 **proposes** replacing "park Loop B for a year on the second failure" with "diagnose and suspend automatic promotion; continue controlled first-SFT research toward the January target." This is a PROPOSED amendment, not yet owner-approved — the rule above, as written, is what governs until the owner confirms D-3.
 
 ---
 

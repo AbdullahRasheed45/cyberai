@@ -8,7 +8,7 @@
 - Area: <!-- serving / training / verifier / lab / authz / infra / docs -->
 
 ## Definition-of-Done items addressed
-<!-- Link the definition-of-done items from docs/MASTER_BRIEF_v2.0.md (Part B) this PR completes. -->
+<!-- Link the definition-of-done items from docs/MASTER_BRIEF_v2.2.md (Part B) this PR completes. -->
 - [ ]
 - [ ]
 
