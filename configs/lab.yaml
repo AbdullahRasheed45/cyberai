@@ -1,0 +1,12 @@
+# Isolated lab policy (non-secret) — see docs/EXECUTION_ENVIRONMENTS.md.
+# Host-specific values (WireGuard lab IP, lab gateway URL) are environment-
+# specific and stay in .env / .env.example, never here. This file is the
+# policy that is the same regardless of which laptop/subnet is in use.
+# Validated against libs/schemas.LabConfig.
+default_state: "TARGET_SERVING"       # LabState: TARGET_SERVING | DETONATION
+require_tunnel_down_on_detonation: true
+lab_subnet: "10.10.0.0/24"
+web_targets:
+  - dvwa
+  - juice-shop
+  - metasploitable

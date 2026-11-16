@@ -1,0 +1,45 @@
+name: CI
+
+# Foundation-level checks only: schema/config validation, lint, unit tests.
+# This runs on a GitHub-hosted Linux runner with no GPU — it cannot and does
+# not claim to validate vLLM/Unsloth on GB10 or anything on the lab laptop.
+# See docs/EXECUTION_ENVIRONMENTS.md for what still needs real hardware.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  foundation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --all-groups
+
+      - name: Lint (ruff check)
+        run: uv run ruff check .
+
+      - name: Format check (ruff format)
+        run: uv run ruff format --check .
+
+      - name: Unit tests
+        run: uv run pytest -q
+
+      - name: No .env committed
+        run: |
+          if git ls-files | grep -E '(^|/)\.env$'; then
+            echo "A .env file is tracked in git — secrets must stay out of source control." >&2
+            exit 1
+          fi
+          echo "OK: no .env file tracked."
