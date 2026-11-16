@@ -1,0 +1,3 @@
+{"Method": "GET", "UriPath": "/login", "QueryString": "user=alice", "UserAgent": "Mozilla/5.0", "SourceIp": "10.0.4.1", "Host": "shop.example", "Body": ""}
+{"Method": "GET", "UriPath": "/blog", "QueryString": "title=how to drop a bad habit", "UserAgent": "Mozilla/5.0", "SourceIp": "10.0.4.2", "Host": "shop.example", "Body": ""}
+{"Method": "POST", "UriPath": "/api/search", "QueryString": "", "Body": "term=select the best option", "UserAgent": "Mozilla/5.0", "SourceIp": "10.0.4.3", "Host": "shop.example"}

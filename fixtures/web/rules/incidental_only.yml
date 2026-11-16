@@ -1,0 +1,7 @@
+title: incidental only
+logsource:
+  category: web_request
+detection:
+  sel:
+    SourceIp: '10.0.6.1'
+  condition: sel

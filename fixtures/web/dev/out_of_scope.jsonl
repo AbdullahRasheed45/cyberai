@@ -1,0 +1,1 @@
+{"Method": "GET", "UriPath": "/x", "QueryString": "a=1", "UserAgent": "test", "Referer": "http://x/?p=' OR 1=1--", "SourceIp": "10.0.5.1", "Host": "shop.example", "Body": ""}

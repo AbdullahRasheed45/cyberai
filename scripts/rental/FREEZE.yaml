@@ -1,0 +1,30 @@
+# FREEZE TEMPLATE — preflight + plan.resolve REJECT every FILL/placeholder, non-
+# digest image, non-commit revision, and unpinned dependency.
+#
+# MODEL PAIR RESOLVED (verified from the HF model cards, 2026-11-12):
+#   The FP8 serving checkpoint is the official FP8 quantisation of the SAME
+#   post-trained model the adapter trains on (Instruct-2507). This is a coherent
+#   pair; the base_model/quantized-from metadata on the FP8 card confirms it.
+#   Commit SHAs are global immutable identities; platform image digests are resolved at setup
+#   (the exact commands are below / in CONFIG_STATUS.md). Do not invent them.
+reference_candidate: Qwen3-30B-A3B-Instruct-2507
+# --- training lineage (the non-FP8 Instruct-2507; unsloth mirror for FastModel) ---
+trainable_base_repo:   unsloth/Qwen3-30B-A3B-Instruct-2507
+trainable_base_commit: "41d47883cd854ab6d119fb7cba6e9ed3511886e2" # verified HF API 2026-11-12
+tokenizer_identity:    unsloth/Qwen3-30B-A3B-Instruct-2507
+# --- serving lineage (FP8 of the SAME Instruct-2507) ---
+serving_base_repo:   Qwen/Qwen3-30B-A3B-Instruct-2507-FP8
+serving_base_commit: "5a5a776300a41aaa681dd7ff0106608ef2bc90db" # verified HF API 2026-11-12
+serving_quantisation: FP8
+serving_quant_provenance: "Official Qwen FP8 quantisation of Qwen/Qwen3-30B-A3B-Instruct-2507 (base_model/quantized-from on the FP8 card); non-thinking Instruct variant (no reasoning parser)."
+trainable_serving_relation_attested: true # pinned 16-shard SHA256 + complete index equality; see artifacts/setup_resolution/lineage_verified.json
+adapter_targets: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+# --- containers (pin by @sha256 digest; versions must match the deps below) ---
+vllm_image:    "nvcr.io/nvidia/vllm@sha256:ecd885a6fa671552021eb2bef16773110ebfa4eb5e24e4a2831bf0f4808ddfea" # ARM64 26.10-py3; registry verified, GPU untested
+unsloth_image: "docker.io/unsloth/unsloth@sha256:c3a52373be71e968310d06a99fee54b0006f34dd847ead1bd63709a0d41a3220" # official core ARM64, registry verified; GPU untested
+dependencies:  # exact == pins, read off the image probe (transformers >= 4.51.0)
+  - "transformers==FILL"
+  - "unsloth==FILL"
+  - "peft==FILL"
+  - "trl==FILL"
+  - "bitsandbytes==FILL"

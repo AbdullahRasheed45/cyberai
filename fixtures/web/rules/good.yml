@@ -1,0 +1,9 @@
+title: SQLi in web request (good)
+logsource:
+  category: web_request
+detection:
+  sel_q:
+    QueryString|re: '(?i)(\bunion\s+(all\s+)?select\b|\bor\s+[''"]?\w+[''"]?\s*=\s*[''"]?\w+|[''"]\w+[''"]\s*=\s*[''"]\w+|;\s*drop\s+table\b|''\s*--)'
+  sel_b:
+    Body|re: '(?i)(\bunion\s+(all\s+)?select\b|\bor\s+[''"]?\w+[''"]?\s*=\s*[''"]?\w+|[''"]\w+[''"]\s*=\s*[''"]\w+|;\s*drop\s+table\b|''\s*--)'
+  condition: sel_q or sel_b

@@ -1,0 +1,11 @@
+title: Memorizes every public train positive
+logsource:
+  category: web_request
+detection:
+  q:
+    QueryString:
+      - "id=1' OR '1'='1"
+      - "pid=5' OR 1=1--"
+  b:
+    Body: "q=x' UNION SELECT username,password FROM users--"
+  condition: q or b

@@ -1,67 +1,130 @@
 # Pre-rental readiness — 12 November 2026
 
-**NOT READY for the requested training/product purchase trial.** Reviewed the actual scaffold/foundation/serving branches, product alignment, handoff and proposed v1.3. The historical v1.2 critique brief and Round-18 archive/code are absent. No GPU result exists in this checkout. The handoff's historical test counts are not current execution evidence.
+**NOT READY for the full offensive/defensive product purchase trial.** The source-archive blocker is resolved: Round 18 is now integrated and repaired on `stage-1/round18-rental-integration`, preserving the earlier serving fixes. See `ROUND18_INTEGRATION.md` for source hashes, defect dispositions and evidence limits. This is a concrete preparation update, not a new architecture.
 
-## Concrete blockers
+## Remaining blockers before booking
 
-1. Obtain/import the actual Round-18 implementation and evidence. No `rental/`, training/save/fresh-reload scripts, acceptance controller, web export or complete workflow is present. Do not reconstruct them from narrative summaries and call the defects fixed.
-2. Runbook B4 is illustrative, not an implemented, pinned training stack. Training-image digest, runtime dependencies, exact model snapshot, explicit LoRA attachment and fresh-process adapter effect/deployment must be wired and checked offline before billing. The handoff lists candidate identities; those are not locally verified runtime assets.
-3. No executable assured offensive web task, defensive counterpart, independent retest or separate target-lab enforcement exists. Arrange the lab and prove resets, telemetry, tunnel restrictions and target ownership before billing.
-4. Representative training-token accounting, CUDA memory sampling, steady-state step timing, training timeout/cleanup and export receipts are not implemented. Serving measurement now reports actual tokens, per-request wall time, aggregate throughput, warm-up, failures and total runtime, but explicitly labels loading/device memory and streaming TTFT/decode as unmeasured. Do not call this a complete fitness benchmark.
-5. Owner inputs needed: acceptable training-round duration and representative dataset size/context mix, verified external storage/export destination and capacity, separate lab access, and provider billing/teardown semantics. No numerical purchase threshold has been invented.
+1. A separate owned target lab has not been demonstrated available, isolated, resettable and accessible. The available web workflow evaluates detection rules on fixtures; it does not implement the offensive environment outcome → defensive action → independent retest path. Either prepare that lab/workflow or explicitly narrow the trial to platform/adapter integration; this report does not make that scope decision for the owner.
+2. There are no representative independently verified offensive/defensive trajectories. The web pilot export contains three public-fixture detection examples sharing a target rule. They are plumbing data, not a representative training corpus or learning-gain evidence. Supply verified trajectory/data profiles before using the matrix to forecast production cadence.
+3. Exact dependency versions inside the two candidate GPU images are still `FILL` in FREEZE.yaml. The runtime collector and fail-closed gate exist. Inspect/cache image assets and collect versions before billing where infrastructure allows; accelerator compatibility and performance must be checked during the authorised GB10 session. Never insert CPU-host versions to pass the gate.
+4. Owner must identify the actual rental access, storage capacity and durable export destination, acceptable training-round duration, dataset size/context mix and provider teardown/billing deadline. Local archive verification is implemented; an off-instance copy/receipt is not configured or demonstrated.
 
-## Offline preparation and exclusions
+Fresh restricted acceptance data/runner remain absent. Those are excluded from purchase and learning-gain claims, rather than calling the public challenge an acceptance set. The SQLite ledger does not by itself enforce all possible direct-scoring access. All six original Round-18 defects have specific repairs or exclusions in ROUND18_INTEGRATION.md.
 
-Before billing: obtain missing sources; resolve evaluator defects or exclude learning claims; freeze train/dev separately from a fresh restricted acceptance set; acceptance must never select training targets. All six Round-18 issues in the handoff remain OPEN and excluded from purchase/learning evidence. Define the January web objective, prepare verified task trajectories and negative controls, pin assets, cache where permitted, test command forwarding with fake executables, and verify export/restore checksums to the selected destination.
+## Before billing starts
 
-Representative records must preserve scenario/template ID, initial privileges/state, bounded offensive action and observation, independent success evidence, defensive action, retest and service health, telemetry completeness, verifier/model versions and split. Such records are not currently available as verified training data. Do not synthesize successful outcomes to fill the benchmark.
+Prepare the separate target lab; define workload/purchase criteria; import real verified train/dev trajectories; retain public challenge fixtures as regression only; select a durable export destination and verify a small copy/restore receipt; freeze this code commit and review model/image identities; arrange caches and storage. Do not run Docker/GPU commands on a target lab holding untrusted targets or model credentials.
 
-Training matrix, once the missing runner is restored: prioritize sequence 2048/batch 1, 4096/batch 1, 8192/batch 1; then 4096/batch 2 only with measured headroom. Use 5 warm-up and 25 measured optimizer steps as a provisional measurement budget, recording actual non-padding tokens, microbatch/accumulation, completed optimizer steps, synchronized CUDA timing, peak allocated/reserved and host memory. Stop on OOM; preserve failure logs; no blind retry. These are proposed workloads, not executable or measured results.
-
-## Available commands
-
-From repo root, on development machine:
+On the development machine, from repo root:
 
 ```bash
 uv sync --frozen
 uv run pytest -q
 uv run ruff check .
 uv run ruff format --check .
-uv run python scripts/gb10/render_serve_args.py --variant primary --format json
-uv run python scripts/gb10/render_serve_args.py --variant dense_fallback --format json
+mkdir -p data
+uv run python scripts/rental/make_pilot.py --domain web --out data/web_pilot.jsonl
+# This must ABORT while dependency pins remain unresolved; it is not a dry-run pass:
+uv run python -m rental.orchestrate
 ```
 
-Only AFTER explicit rental authorisation, on GB10 Linux with uv/Docker/NVIDIA runtime installed:
+The JSONL export refuses to overwrite an existing file. The emitted examples remain labelled public fixture plumbing. The native-reasoning Qwen3 family and model comparison remain product requirements; the pinned Instruct-2507 integration candidate does not silently settle that choice.
+
+## Setup/GB10-only commands after explicit authorisation
+
+Run on the actual Linux ARM64 GB10 engine, never as evidence on an unrelated GPU. Install project plus snapshot helper on the engine host. Do not install host Torch as a substitute for the frozen CUDA containers.
 
 ```bash
-mkdir -p evidence/gb10
+uv sync --frozen
+uv pip install huggingface-hub
+mkdir -p artifacts
 set -o pipefail
-timeout 120 bash scripts/gb10_serve.sh preflight-host 2>&1 | tee evidence/gb10/host.log
-timeout 1800 bash scripts/gb10_serve.sh preflight-container 2>&1 | tee evidence/gb10/container.log
-timeout 120 bash scripts/gb10_serve.sh start primary
-# After loading, with logs retained separately:
-timeout 90 bash scripts/gb10_serve.sh smoke-test gb10_cloud hardware primary
-timeout 1800 uv run python scripts/measure_throughput.py --host-env gb10_cloud --evidence hardware --batch-size 4 --max-tokens 128 --warmup-requests 2 --out evidence/gb10/serving.json
-docker logs cyberai-vllm-gb10 > evidence/gb10/server.log 2>&1
-bash scripts/gb10_serve.sh stop
+# Record hardware/driver first; confirm GB10 and aarch64:
+uname -m
+nvidia-smi
+# Pull both exact image digests from scripts/rental/FREEZE.yaml; retain logs.
+# After pulls, collect actual per-image versions/CUDA/bf16:
+timeout 1800 uv run python scripts/rental/collect_image_pins.py
 ```
 
-The start command detaches: its timeout DOES NOT bound server lifetime or billing. Set a provider deadline independently and stop/remove the container explicitly. Stopping Docker does not terminate the rental. The serving image and both model revisions are pinned; their runtime compatibility is UNEXECUTED. The FP8 primary's LoRA combination remains refused by default pending correctness evidence. Training and complete-workflow commands cannot honestly be supplied until the absent runner is restored.
+Review `artifacts/image_pin_collection/FREEZE.image-versions.yaml`, its per-image logs and model-lineage evidence before using it. Copy that reviewed candidate to a run-specific freeze and preserve it; do not overwrite the source template to conceal a failed image. Materialise the serving snapshot using the chosen freeze:
 
-## Prioritized 24-hour schedule (conditional; do not book yet)
+```bash
+export FREEZE=artifacts/image_pin_collection/FREEZE.image-versions.yaml
+export MODEL_PATH=/path/on/engine/model-cache/qwen3-fp8
+uv run python scripts/rental/materialise_checkpoint.py
+```
 
-| Hours | Work and stop condition |
+`materialise_checkpoint.py` requires MODEL_PATH and creates/checks the exact snapshot manifest; allow sufficient model storage/download time. `/path/on/engine/...` must be replaced with an actual prepared persistent/cache location. No accessible engine path is known today.
+
+Once runtime pins, snapshots and review are complete, run a bounded pilot lifecycle with explicit training mode:
+
+```bash
+export RUN_ID=trial_seq2048_b1
+export TRAIN_MODE=pilot PILOT_DATA=data/web_pilot.jsonl WORKLOAD_DOMAIN=web
+export TRAIN_MAX_SEQ_LENGTH=2048 TRAIN_MAX_STEPS=30 TRAIN_BATCH_SIZE=1
+export TRAIN_GRAD_ACCUM=1 TRAIN_MEASURE_WARMUP_STEPS=5
+# MODEL_PATH/FREEZE remain set. Do not set ADAPTER_PATH; it is derived from RUN_ID.
+timeout 6h uv run python -m rental.orchestrate 2>&1 | tee artifacts/trial_seq2048_b1.log
+```
+
+The lifecycle serves/measures base, stops it, trains/saves, starts a fresh reload process, deploys the actual saved adapter, executes the web fixture smoke, and creates an archive with hashes. All real GPU phases remain UNEXECUTED. FP8-MoE LoRA may fail despite correct lineage; that is required evidence, not a configuration flag to wave through. A successful fixture smoke is not the separate offensive/defensive lab workflow.
+
+A shell timeout does not guarantee detached Docker cleanup or stop provider billing. Independently schedule a provider deadline and retain export reserve. On timeout/interruption, explicitly inspect/stop serving containers and any active training container, preserve logs and export before terminating the rental. Verify provider billing stopped. Do not delete/reuse failed run output; choose a new RUN_ID.
+
+## Prioritized workload and measurement
+
+Training matrix: 2048 × batch1 first, then 4096 × batch1, then 8192 × batch1; try 4096 × batch2 only if measured headroom and remaining budget permit. Use fresh RUN_ID per trial and the same frozen data/config except the tested dimension. Do not repeat the whole serve/eval lifecycle unnecessarily for every training cell: the documented `scripts/run_smoke.sh` can run train/save/fresh-reload with explicit UNSLOTH_IMAGE, SMOKE_MODEL, SMOKE_REVISION and SMOKE_OUT from the reviewed freeze.
+
+Use 5 measurement-warm-up + 25 measured optimizer steps initially. This is a provisional timing budget, not evidence of representative learning. Log actual consumed non-padding/supervised tokens (including repeated microbatches), sequence histogram, accumulation, completed steps, per-step synchronized durations, warm-up-excluded seconds/step and token rate, model-load time, allocated/reserved CUDA peaks and host memory/headroom. Never multiply requested max sequence length by steps and call it actual tokens. Padding/truncation and short fixture examples must be disclosed.
+
+Inference harness separates TTFT/decode estimates and request latency from actual successful output tokens over batch wall time. It records failed requests and sampled device memory; unavailable memory remains unavailable. Record serving startup/load/compilation from container logs and outer monotonic durations separately; a warm server measurement does not measure loading overhead. The harness is not direct kernel-prefill instrumentation or a thermal profiler.
+
+## Conditional 24-hour schedule
+
+| Hours | Priority and stop condition |
 |---|---|
-| 0–2 | Hardware/architecture/driver/storage checks; pull frozen assets; capture identities and loading overhead. Wrong host/incompatible image: stop, export and end rental. |
-| 2–5 | Baseline serve; warm-up separately; context/concurrency measurements; capture actual token counts and device/host memory. Bound debugging to this window. |
-| 5–11 | Stop serving; verify memory released; representative training matrix and save. This phase is blocked by missing runner/data. |
-| 11–15 | Fresh-process reload, adapter state/effect checks, serving deployment of the actual trained MoE adapter. Incompatibility is a failed purchase requirement, not a successful smoke. |
-| 15–19 | Complete offensive → independent outcome → defensive action → retest workflow on separate lab; any evaluator disagreement quarantines the record. |
-| 19–21 | One bounded rerun of a diagnosed failure or sustained measurement; never consume export reserve. |
-| 21–24 | Export adapter/configs/data hashes/logs/failures, verify destination receipts and restore; stop workloads and terminate rental through provider; confirm billing stopped. |
+| 0–2 | Confirm hardware/driver/storage, frozen assets and full entrypoints. Wrong host/incompatible stack: export and end session. |
+| 2–5 | Baseline serve; measure startup separately, then bounded context/concurrency/warm-cache matrix and memory. Stop serving and verify release. |
+| 5–11 | Representative training matrix, actual tokens/step durations, save and fresh reload. Stop on OOM and preserve evidence. |
+| 11–15 | Deploy the real trained MoE adapter, verify identity/output correctness and adapter effect. |
+| 15–19 | Prepared separate-lab complete workflow, or explicitly owner-approved platform-only scope. Do not substitute a detection fixture score for an offensive workflow. |
+| 19–21 | One diagnosed rerun or sustained measurement; no broad tuning sweep. |
+| 21–24 | Export all successes/failures/configs/adapter/data hashes; verify off-instance copy and restore/receipt; stop containers and terminate rental; confirm billing stopped. |
 
-## Purchase decision
+## Purchase criteria and evidence
 
-Require real GB10 serving, representative train/save/fresh-reload and actual adapter deployment, bounded end-to-end lab execution, sufficient measured memory/storage headroom, and verified evidence export. Compare measured useful tokens/second and total round time including load/warm-up/eval/export against the owner's accepted workload/cadence. Successful infrastructure is not evidence of held-out learning gain or six-domain mastery. Any missing/failed required result means no positive purchase recommendation. No purchase or further rental is authorised by this report.
+Require actual GB10 serving, representative train/save/fresh-reload, real adapter deployment and correct output, measured memory/storage headroom, and verified off-instance evidence export. Full product trial also requires the prepared offensive/defensive lab workflow. Compare total measured cycle time including load/compilation/eval/export to the owner's accepted workload/cadence. Missing/failed required results prevent a positive recommendation. Do not infer six-domain mastery, recurring weight improvement or held-out gain from platform smokes.
 
-Offline evidence: 27 tests passed on Windows outside sandbox localhost restrictions, including two regression tests first observed failing for token-count fabrication. No CUDA, Docker networking or real container invocation was executed here. Bash lifecycle verification remains required; Python mocks do not certify it.
+Offline evidence: combined suite 201 passed, 2 skipped (Torch-dependent CPU checks unavailable); web export emits three examples; unresolved freeze aborts before Docker; lint/format and compilation checked. No GB10, training, adapter-deployment or separate-lab runtime check has been executed here. Bash lifecycle execution remains unverified on this Windows host.
+# Authorised offensive web workflow (offline evidence)
+
+The development slice in `lab/web_workflow/` is the smallest complete
+offensive-first workflow. It is a symbolic, resettable owned-lab scenario only:
+it cannot contact a host, execute a command, accept a URL, or accept arbitrary
+payloads. It connects a bounded action interface, independent primary/shadow
+offensive verifiers, telemetry, defensive patch plus independent retest, and
+append-only provenance-tagged JSONL evidence.
+
+Run its offline evidence suite before rental:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\run_web_reference_workflow.py --case all --out artifacts\web_reference_evidence.jsonl
+.\.venv\Scripts\python.exe -m pytest tests\test_offensive_web_workflow.py -q
+```
+
+Expected offline cases are `VERIFIED` then `REMEDIATED` (success),
+`NOT_VERIFIED` (failed), `UNVERIFIABLE_PRE_SATISFIED`, and `ALREADY_PATCHED`.
+Only the verified-and-remediated scripted reference record is eligible for the
+development pilot; none is acceptance data. `configs/six_domain_curriculum.yaml`
+retains the six-domain easy-to-hard inventory and resource-aware schedule; only
+the web reference is implemented.
+
+The GPU-only runner is deliberately separate. After adapter deployment, the
+web `WORKLOAD_DOMAIN` invokes `scripts/rental/45_web_offensive_workflow.py`.
+It asks Qwen for a strict JSON action plan, rejects any plan outside the owned
+scenario, and records task success, API-reported prompt/completion tokens,
+action count, monotonic runtime, and failure category in
+`artifacts/run_<RUN_ID>/web_offensive_workflow_result.json`. It does not prove
+GPU compatibility, model quality, or model-weight improvement until run on the
+rented machine.
