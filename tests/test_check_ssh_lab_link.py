@@ -71,6 +71,12 @@ def test_verify_remote_accepts_a_genuinely_different_host():
     assert result == "cyberai-lab-laptop"
 
 
+def test_verify_remote_checks_the_configured_host_identity():
+    with pytest.raises(mod.LinkNotExercisedError):
+        mod.verify_remote("unexpected-host", "spark", expected_host="lab-laptop")
+    assert mod.verify_remote("lab-laptop", "spark", expected_host="lab-laptop") == "lab-laptop"
+
+
 def test_a_genuinely_local_worker_is_caught_end_to_end():
     """No real SSH involved: run the ACTUAL worker locally and confirm the
     whole chain — its reported host, through verify_remote — correctly
